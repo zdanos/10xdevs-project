@@ -3,9 +3,9 @@ description:
 globs: 
 alwaysApply: true
 ---
-# AI Rules for {app-name}
+# AI Rules for FlashCard AI
 
-{project-description}
+FlashCard AI is a mobile-first, MVP (Minimum Viable Product) web application that drastically reduces the time required to create learning materials. The system uses artificial intelligence (GPT-4o-mini model) to automatically generate text flashcards based on user-pasted notes. The application integrates the proven SuperMemo 2 (SM-2) repetition algorithm, enabling effective learning using the spaced repetition method. The product aims to provide a simple yet effective tool that eliminates the barrier of manual flashcard creation while maintaining high content quality thanks to a user-verified mechanism.
 
 ## Tech Stack
 
