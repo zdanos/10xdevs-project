@@ -1,26 +1,54 @@
-# 10x Astro Starter
+# FlashCard AI (MVP)
 
-A modern, opinionated starter template for building fast, accessible, and AI-friendly web applications.
+![version](https://img.shields.io/badge/version-0.0.1-blue)
+![node](https://img.shields.io/badge/node-22.14.0-339933?logo=node.js&logoColor=white)
+![astro](https://img.shields.io/badge/Astro-5-BC52EE?logo=astro&logoColor=white)
+![react](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=0B2231)
 
-## Tech Stack
+## Project description
 
-- [Astro](https://astro.build/) v5.5.5 - Modern web framework for building fast, content-focused websites
-- [React](https://react.dev/) v19.0.0 - UI library for building interactive components
-- [TypeScript](https://www.typescriptlang.org/) v5 - Type-safe JavaScript
-- [Tailwind CSS](https://tailwindcss.com/) v4.0.17 - Utility-first CSS framework
+FlashCard AI is a mobile-first MVP web application that drastically reduces the time required to create learning materials. Users paste notes, and AI (via the OpenAI API using the GPT-4o-mini model) generates text-only flashcards. The product is designed around spaced repetition using the SuperMemo 2 (SM-2) algorithm, with a user verification step (“Staging Area”) to ensure content quality.
 
-## Prerequisites
+### Table of contents
 
-- Node.js v22.14.0 (as specified in `.nvmrc`)
-- npm (comes with Node.js)
+- [Project name](#flashcard-ai-mvp)
+- [Project description](#project-description)
+- [Tech stack](#tech-stack)
+- [Getting started locally](#getting-started-locally)
+- [Available scripts](#available-scripts)
+- [Project scope](#project-scope)
+- [Project status](#project-status)
+- [License](#license)
 
-## Getting Started
+## Tech stack
 
-1. Clone the repository:
+- **Frontend**:
+  - **Astro 5** (with React islands)
+  - **React 19**
+  - **TypeScript 5**
+  - **Tailwind CSS 4**
+  - **shadcn/ui**
+- **Backend**:
+  - **Supabase** (PostgreSQL + Auth; can be self-hosted)
+- **AI**:
+  - **OpenAI API** (target model: **GPT-4o-mini**)
+- **CI/CD & hosting (planned in PRD/tech stack)**:
+  - **GitHub Actions**
+  - **DigitalOcean** (Docker image deployment)
+
+## Getting started locally
+
+### Prerequisites
+
+- **Node.js**: `22.14.0` (from `.nvmrc`)
+- **npm**: comes with Node.js
+
+### Setup
+
+1. Install the Node version (if you use nvm):
 
 ```bash
-git clone https://github.com/przeprogramowani/10x-astro-starter.git
-cd 10x-astro-starter
+nvm use
 ```
 
 2. Install dependencies:
@@ -29,65 +57,83 @@ cd 10x-astro-starter
 npm install
 ```
 
-3. Run the development server:
+3. Start the development server:
 
 ```bash
 npm run dev
 ```
 
-4. Build for production:
-
-```bash
-npm run build
-```
-
-## Available Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run lint:fix` - Fix ESLint issues
-
-## Project Structure
+### Project structure
 
 ```md
 .
 ├── src/
-│   ├── layouts/    # Astro layouts
-│   ├── pages/      # Astro pages
-│   │   └── api/    # API endpoints
-│   ├── components/ # UI components (Astro & React)
-│   └── assets/     # Static assets
-├── public/         # Public assets
+│   ├── components/          # UI components (Astro & React)
+│   ├── layouts/             # Astro layouts
+│   ├── lib/                 # Services and helpers
+│   ├── pages/               # Astro routes
+│   │   └── api/             # API endpoints
+│   ├── styles/              # Global styles
+│   └── env.d.ts             # TypeScript env typings
+├── public/                  # Public static assets
+└── astro.config.mjs         # Astro configuration
 ```
 
-## AI Development Support
+### Environment / external services
 
-This project is configured with AI development tools to enhance the development experience, providing guidelines for:
+This MVP is designed to integrate with:
 
-- Project structure
-- Coding practices
-- Frontend development
-- Styling with Tailwind
-- Accessibility best practices
-- Astro and React guidelines
+- **Supabase** (database + authentication)
+- **OpenAI API** (flashcard generation; GPT-4o-mini)
 
-### Cursor IDE
+## Available scripts
 
-The project includes AI rules in `.cursor/rules/` directory that help Cursor IDE understand the project structure and provide better code suggestions.
+From `package.json`:
 
-### GitHub Copilot
+- **`npm run dev`**: start Astro dev server
+- **`npm run build`**: build for production
+- **`npm run preview`**: preview the production build
+- **`npm run astro`**: run Astro CLI
+- **`npm run lint`**: run ESLint
+- **`npm run lint:fix`**: run ESLint with auto-fixes
+- **`npm run format`**: format with Prettier
 
-AI instructions for GitHub Copilot are available in `.github/copilot-instructions.md`
+## Project scope
 
-### Windsurf
+### In scope (MVP)
 
-The `.windsurfrules` file contains AI configuration for Windsurf.
+- **Web application** (mobile-first, responsive)
+- **Text flashcard generation from pasted notes**
+  - Input limit: **up to 5000 characters**
+  - Daily generation limit: **10 requests per user**
+  - **Staging Area** where users must verify AI-generated flashcards before saving
+- **Study mode** using **SM-2 (SuperMemo 2)** with 4-grade evaluation:
+  - **Again**, **Hard**, **Good**, **Easy**
+  - Session ends with a summary screen encouraging users to return the next day
+- **Flashcard management**:
+  - Manual creation (text-only), edit, delete
+  - Organization into simple **Decks**
+- **Authentication**:
+  - Email + password only (via Supabase Auth)
+- **UI constraints**:
+  - **English-only UI**
+  - **Light mode only**
 
-## Contributing
+### Out of scope
 
-Please follow the AI guidelines and coding practices defined in the AI configuration files when contributing to this project.
+- Images, audio, LaTeX, Markdown formatting
+- File imports (PDF/DOCX) and OCR
+- Social login (Google/Facebook/etc.)
+- Sharing decks between users
+- Native iOS/Android apps
+- Custom repetition algorithm (other than SM-2)
+- Regenerate button for a single incorrect card (manual edit instead)
+- UI internationalization (only EN)
+
+## Project status
+
+- **Stage**: MVP specification defined (PRD) and project scaffold in place (`astro` + `react` + `tailwind`)
+- **Product goal**: deliver a minimal, mobile-first flashcard generator with user verification and SM-2 spaced repetition
 
 ## License
 
