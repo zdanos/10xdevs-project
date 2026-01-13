@@ -6,16 +6,18 @@ The **Generate Flashcards** endpoint accepts user-provided text and leverages Op
 
 **Key Characteristics:**
 - **Stateless Operation**: Does not persist generated flashcards to the database
-- **Quota Enforcement**: Validates daily generation limits (10 per 24-hour period) before processing
+- **Fair Quota Enforcement**: Validates daily generation limits (10 per 24-hour period) without consuming quota until generation succeeds
 - **User Verification Workflow**: Returns ephemeral data to a "Staging Area" for user review and approval
-- **AI-Powered**: Uses OpenAI GPT-4o-mini for content generation
+- **AI-Powered**: Uses OpenAI GPT-4o-mini with Responses API for content generation
+- **Data Accuracy**: Records actual flashcard counts (not estimates) in generation logs
 
 **Business Logic Flow:**
 1. Authenticate user via JWT token
 2. Validate input text (max 5000 characters)
-3. Check and update user's daily quota via database RPC
+3. Check user's daily quota via database RPC (read-only operation)
 4. Send text to OpenAI API for flashcard generation
-5. Return generated flashcards and remaining quota to client
+5. Record successful generation and consume quota with actual count
+6. Return generated flashcards and remaining quota to client
 
 ---
 
@@ -229,7 +231,8 @@ const OpenAIResponseSchema = z.object({
 
 **Triggers:**
 - User has reached 10 generations in the current 24-hour period
-- RPC `check_and_reset_quota` returns error
+- RPC `check_quota` indicates quota exceeded (before generation)
+- RPC `record_generation` fails due to race condition (after generation)
 
 #### 500 Internal Server Error - Server Failure
 ```json
@@ -287,28 +290,26 @@ const OpenAIResponseSchema = z.object({
    |         |
    |         |--> SUCCESS: Extract validated text
    |
-   |--> [4] Call Quota Service
+   |--> [4] Check Quota (Read-Only)
    |         |
    |         v
-   |    [Quota Service]
+   |    [Quota Service: checkQuota]
    |         |
-   |         |--> [4a] Call RPC: check_and_reset_quota(user_id)
+   |         |--> [4a] Call RPC: check_quota()
    |         |         |
    |         |         v
    |         |    [Database RPC Function]
    |         |         |
    |         |         |--> Check last_reset_date
-   |         |         |--> If >24h: Reset quota to 0
+   |         |         |--> If >24h: Reset quota to 0 (no increment)
    |         |         |--> Check if quota < 10
-   |         |         |--> FAIL: Throw exception (quota exceeded)
-   |         |         |--> SUCCESS: Increment quota, create generation_log entry
-   |         |         |--> Return generation_log_id and updated quota
+   |         |         |--> Return: can_generate, quota_remaining, hours_until_reset
    |         |         |
    |         |<--------+
    |         |
-   |         |--> FAIL: Return 403 Forbidden
+   |         |--> FAIL (can_generate=false): Return 403 Forbidden
    |         |
-   |         |--> SUCCESS: Return generation_log_id and quota_remaining
+   |         |--> SUCCESS (can_generate=true): Proceed to generation
    |         |
    |<--------+
    |
@@ -329,16 +330,38 @@ const OpenAIResponseSchema = z.object({
    |         |         |
    |         |<--------+
    |         |
-   |         |--> [5d] Parse and validate response (Zod)
-   |         |--> [5e] Filter flashcards (max 200/500 char limits)
+   |         |--> [5d] Automatic validation via zodTextFormat (200/500 char limits)
    |         |
-   |         |--> FAIL: Return 500 or 503 error
+   |         |--> FAIL: Return 500 or 503 error (quota NOT consumed)
    |         |
    |         |--> SUCCESS: Return flashcards array
    |         |
    |<--------+
    |
-   |--> [6] Construct response
+   |--> [6] Record Generation & Consume Quota
+   |         |
+   |         v
+   |    [Quota Service: recordGeneration]
+   |         |
+   |         |--> [6a] Call RPC: record_generation(flashcards.length)
+   |         |         |
+   |         |         v
+   |         |    [Database RPC Function]
+   |         |         |
+   |         |         |--> Increment quota with optimistic locking
+   |         |         |--> Create generation_log entry with actual count
+   |         |         |--> FAIL: Quota exceeded (race condition)
+   |         |         |--> SUCCESS: Return generation_log_id, quota_remaining
+   |         |         |
+   |         |<--------+
+   |         |
+   |         |--> FAIL: Log warning, return flashcards anyway (better UX)
+   |         |
+   |         |--> SUCCESS: Return updated quota information
+   |         |
+   |<--------+
+   |
+   |--> [7] Construct response
    |         |
    |         |--> Combine flashcards + quota_remaining
    |         |
@@ -353,22 +376,46 @@ const OpenAIResponseSchema = z.object({
 
 ### 5.2. Database Interactions
 
-#### RPC Call: `check_and_reset_quota`
+The quota system uses two separate RPC functions for better data consistency and fairness:
+
+#### RPC Call 1: `check_quota`
 ```sql
--- Function: check_and_reset_quota()
--- Purpose: Atomically check and update user quota, with lazy reset mechanism
--- Returns: JSON { generation_log_id: UUID, quota_remaining: INTEGER }
--- Throws: Exception if quota exceeded
+-- Function: check_quota()
+-- Purpose: Check if user has available quota and perform lazy reset if needed
+-- Returns: JSON { can_generate: BOOLEAN, quota_remaining: INTEGER, current_count: INTEGER, hours_until_reset: NUMERIC }
+-- Side Effects: May reset quota if 24h passed, but does NOT increment counter
 ```
 
 **Database Changes:**
 1. **Read**: `profiles` table (current quota and reset date)
-2. **Write**: `profiles` table (increment `generations_count`, update `last_generation_date`)
-3. **Write**: `generation_logs` table (create new log entry)
+2. **Write** (conditional): `profiles` table (reset quota if >24h passed)
 
 **Tables Modified:**
-- `profiles`: Updates `generations_count`, `last_generation_date`, potentially `last_reset_date`
-- `generation_logs`: Inserts new record with `user_id` and `generated_count` (from OpenAI response)
+- `profiles`: Potentially resets `generations_count` to 0 and updates `last_reset_date` if 24+ hours passed
+- **Does NOT**: Increment counter or create generation_log entry
+
+#### RPC Call 2: `record_generation`
+```sql
+-- Function: record_generation(p_generated_count INTEGER)
+-- Purpose: Record successful generation and consume quota with actual flashcard count
+-- Returns: JSON { generation_log_id: UUID, generations_count: INTEGER, quota_remaining: INTEGER }
+-- Throws: Exception if quota exceeded (handles race conditions via optimistic locking)
+```
+
+**Database Changes:**
+1. **Read**: `profiles` table (for reset calculation)
+2. **Write**: `profiles` table (increment `generations_count` with optimistic locking, update `last_generation_date`)
+3. **Write**: `generation_logs` table (create new log entry with actual count)
+
+**Tables Modified:**
+- `profiles`: Increments `generations_count` (with revalidation), updates `last_generation_date`, `updated_at`
+- `generation_logs`: Inserts new record with `user_id` and actual `generated_count` from OpenAI response
+
+**Key Benefits:**
+- Quota only consumed after successful generation
+- Accurate flashcard counts in generation_logs (no estimates)
+- Optimistic locking prevents race conditions
+- Fair to users (no quota loss on system failures)
 
 ### 5.3. External Service Interactions
 
@@ -517,9 +564,16 @@ Requirements:
 ### 6.3. Quota Protection
 
 **Race Condition Prevention:**
-- Use atomic database RPC function for quota checking
-- Database-level locking ensures consistency
-- Single transaction for check + increment
+- Two-phase quota system: check (read-only) → generate → record (with locking)
+- Optimistic locking in `record_generation` revalidates quota during update
+- `WHERE generations_count < 10` ensures concurrent requests don't exceed quota
+- Failed recording doesn't lose user's generated flashcards (graceful degradation)
+
+**Architecture Benefits:**
+- Quota consumed only after successful generation
+- No quota loss on OpenAI failures
+- Accurate analytics data
+- Fair user experience
 
 ### 6.4. CORS Configuration
 
@@ -627,32 +681,43 @@ if (error || !user) {
 #### Quota Exceeded (403)
 
 **Causes:**
-- User has reached 10 generations in current 24-hour period
-- RPC function throws quota exceeded exception
+- User has reached 10 generations in current 24-hour period (detected at check phase)
+- Race condition: quota consumed by concurrent request between check and record
 
 **Handling:**
 ```typescript
-try {
-  const { generation_log_id, quota_remaining } = await checkAndResetQuota(userId);
-} catch (error) {
-  if (error.message.includes('quota exceeded')) {
-    // Calculate time until reset
-    const retryAfter = calculateResetTime(lastResetDate);
-    
-    return new Response(
-      JSON.stringify({
-        error: 'Quota exceeded',
-        message: `Daily generation limit reached (10/10). Quota resets in ${formatTime(retryAfter)}.`,
-        retry_after: retryAfter
-      }),
-      { 
-        status: 403,
-        headers: { 
-          'Content-Type': 'application/json',
-          'Retry-After': retryAfter.toString()
-        }
+// Phase 1: Check quota before generation
+const quotaStatus = await checkQuota(supabase, userId);
+
+if (!quotaStatus.canGenerate) {
+  const retryAfterSeconds = Math.ceil(quotaStatus.hoursUntilReset * 3600);
+  
+  return new Response(
+    JSON.stringify({
+      error: 'Quota exceeded',
+      message: `Daily generation limit reached (10/10). Quota resets in ${quotaStatus.hoursUntilReset.toFixed(1)} hours.`,
+      retry_after: retryAfterSeconds
+    }),
+    { 
+      status: 403,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Retry-After': retryAfterSeconds.toString()
       }
-    );
+    }
+  );
+}
+
+// Phase 2: After successful generation, record it
+try {
+  const result = await recordGeneration(supabase, userId, flashcards.length);
+  return { flashcards, quota_remaining: result.quotaRemaining };
+} catch (error) {
+  if (error instanceof QuotaExceededError) {
+    // Race condition: quota was consumed between check and record
+    // User still gets flashcards (logged as warning)
+    console.warn('Race condition: Quota exceeded after generation');
+    return { flashcards, quota_remaining: 0 }; // Best estimate
   }
 }
 ```
@@ -780,13 +845,14 @@ logger.info('Flashcards generated successfully', {
    - Set reasonable timeout (e.g., 30 seconds)
    - Fail fast if OpenAI is unresponsive
 
-#### Bottleneck 2: Database RPC Call
-**Issue:** Quota check adds database round-trip
+#### Bottleneck 2: Database RPC Calls
+**Issue:** Quota operations add database round-trips
 
 **Optimizations:**
-1. **Atomic Operation**:
-   - Single RPC call handles check + increment
-   - Minimizes database round-trips
+1. **Two-Phase Design**:
+   - `check_quota` is lightweight (read-mostly, only writes for reset)
+   - `record_generation` runs after successful generation (no wasted calls)
+   - Total round-trips: 2 (acceptable for fairness gained)
    
 2. **Connection Pooling**:
    - Reuse Supabase client connections
@@ -795,6 +861,11 @@ logger.info('Flashcards generated successfully', {
 3. **Indexing**:
    - Ensure `profiles.id` is indexed (primary key)
    - Optimize RPC function queries
+
+**Trade-off Analysis:**
+- Extra DB call (check + record vs single call) is acceptable
+- Benefits: Fair quota consumption, accurate data, no quota loss on failures
+- Performance impact minimal compared to OpenAI API latency (2-10s)
 
 #### Bottleneck 3: JWT Validation
 **Issue:** Token verification on every request
@@ -811,9 +882,23 @@ logger.info('Flashcards generated successfully', {
 ### 8.2. Concurrent Request Handling
 
 **Database Race Conditions:**
-- RPC function uses database transactions
-- Atomic quota check + increment
-- No risk of quota bypass via concurrent requests
+- Two-phase quota system minimizes critical section
+- `check_quota` is read-mostly (only writes for reset)
+- `record_generation` uses optimistic locking (`WHERE generations_count < 10`)
+- Race conditions handled gracefully: user gets flashcards even if recording fails
+- No quota bypass possible due to revalidation during update
+
+**Race Condition Example:**
+```
+User has 1 quota left, makes 2 parallel requests:
+1. Request A: check_quota() → can_generate=true
+2. Request B: check_quota() → can_generate=true
+3. Request A: generate flashcards → success
+4. Request B: generate flashcards → success
+5. Request A: record_generation() → success (quota=10)
+6. Request B: record_generation() → fails (quota already 10)
+7. Request B still returns flashcards to user (logged warning)
+```
 
 **OpenAI Rate Limits:**
 - Monitor OpenAI account limits
@@ -979,26 +1064,45 @@ logger.info('Flashcards generated successfully', {
 **File:** `src/lib/services/quota.service.ts`
 
 **Tasks:**
-1. Implement `checkAndResetQuota` function
+1. Implement `checkQuota` function (read-only)
    ```typescript
-   export async function checkAndResetQuota(
+   export async function checkQuota(
      supabase: SupabaseClient,
      userId: string
-   ): Promise<{ generationLogId: string; quotaRemaining: number }>
+   ): Promise<{
+     canGenerate: boolean;
+     quotaRemaining: number;
+     currentCount: number;
+     hoursUntilReset: number;
+   }>
    ```
-   - Call Supabase RPC: `check_and_reset_quota`
-   - Pass user_id as parameter
-   - Handle successful response
-   - Parse returned generation_log_id and quota count
+   - Call Supabase RPC: `check_quota()`
+   - No parameters (uses auth.uid() internally)
+   - Parse returned quota status
+   - No side effects on quota counter
 
-2. Implement error handling
-   - Catch quota exceeded errors
-   - Throw custom QuotaExceededError
-   - Handle database connection errors
+2. Implement `recordGeneration` function (consumes quota)
+   ```typescript
+   export async function recordGeneration(
+     supabase: SupabaseClient,
+     userId: string,
+     generatedCount: number
+   ): Promise<{
+     generationLogId: string;
+     quotaRemaining: number;
+     generationsCount: number;
+   }>
+   ```
+   - Call Supabase RPC: `record_generation(p_generated_count)`
+   - Pass actual flashcard count from OpenAI
+   - Handle optimistic locking failures (race conditions)
+   - Parse returned generation_log_id and updated quota
 
-3. Calculate remaining quota
-   - Extract current count from RPC response
-   - Calculate: `remaining = 10 - current_count`
+3. Implement error handling
+   - Create custom `QuotaExceededError` with `hoursUntilReset` property
+   - Create custom `QuotaServiceError` for database errors
+   - Handle race conditions gracefully in `recordGeneration`
+   - Validate input parameters
 
 ---
 
@@ -1026,17 +1130,54 @@ logger.info('Flashcards generated successfully', {
 
 4. Implement business logic flow
    ```typescript
-   // 1. Check quota
-   const { generationLogId, quotaRemaining } = await checkAndResetQuota(supabase, userId);
+   // 1. Check quota (read-only, no consumption)
+   const quotaStatus = await checkQuota(supabase, userId);
+   
+   if (!quotaStatus.canGenerate) {
+     // Return 403 with retry-after header
+     return new Response(JSON.stringify({
+       error: 'Quota exceeded',
+       message: `Daily generation limit reached (10/10). Quota resets in ${quotaStatus.hoursUntilReset.toFixed(1)} hours.`,
+       retry_after: Math.ceil(quotaStatus.hoursUntilReset * 3600)
+     }), {
+       status: 403,
+       headers: { 
+         'Content-Type': 'application/json',
+         'Retry-After': Math.ceil(quotaStatus.hoursUntilReset * 3600).toString()
+       }
+     });
+   }
    
    // 2. Generate flashcards
    const flashcards = await generateFlashcards(validatedText);
    
-   // 3. Return response
-   return new Response(JSON.stringify({ flashcards, quota_remaining: quotaRemaining }), {
-     status: 200,
-     headers: { 'Content-Type': 'application/json' }
-   });
+   // 3. Record generation and consume quota
+   try {
+     const result = await recordGeneration(supabase, userId, flashcards.length);
+     
+     // 4. Return successful response
+     return new Response(JSON.stringify({ 
+       flashcards, 
+       quota_remaining: result.quotaRemaining 
+     }), {
+       status: 200,
+       headers: { 'Content-Type': 'application/json' }
+     });
+   } catch (error) {
+     // Handle quota exceeded from race condition
+     if (error instanceof QuotaExceededError) {
+       // Still return flashcards (user shouldn't lose generated content)
+       console.warn('Race condition: quota exceeded after generation');
+       return new Response(JSON.stringify({ 
+         flashcards, 
+         quota_remaining: 0 
+       }), {
+         status: 200,
+         headers: { 'Content-Type': 'application/json' }
+       });
+     }
+     throw error; // Re-throw other errors
+   }
    ```
 
 5. Implement comprehensive error handling
@@ -1051,35 +1192,66 @@ logger.info('Flashcards generated successfully', {
 
 ---
 
-### Step 6: Update Database RPC Function (if needed)
-**File:** `supabase/migrations/YYYYMMDDHHMMSS_update_check_and_reset_quota.sql`
+### Step 6: Create Database RPC Functions
+**File:** `supabase/migrations/20260113100000_refactor_quota_system.sql`
 
 **Tasks:**
-1. Review existing `check_and_reset_quota` RPC function
-2. Ensure it returns both:
-   - `generation_log_id` (UUID)
-   - Updated `generations_count` (INTEGER)
-3. Verify atomic operation (transaction)
-4. Test lazy reset logic (>24h check)
+1. Remove old `check_and_reset_quota` function
+   ```sql
+   DROP FUNCTION IF EXISTS public.check_and_reset_quota(integer);
+   ```
 
-**Expected RPC Signature:**
+2. Create `check_quota` RPC function (read-only check)
+   - Returns JSON with: `can_generate`, `quota_remaining`, `current_count`, `hours_until_reset`
+   - Performs lazy reset if 24+ hours passed (resets counter to 0)
+   - Does NOT increment quota or create generation_log
+   - Uses `auth.uid()` to get user_id from JWT context
+
+3. Create `record_generation` RPC function (consumes quota)
+   - Accepts parameter: `p_generated_count` (actual flashcard count)
+   - Returns JSON with: `generation_log_id`, `generations_count`, `quota_remaining`
+   - Uses optimistic locking: `WHERE generations_count < 10`
+   - Creates generation_log entry with actual count
+   - Throws exception if quota exceeded (handles race conditions)
+
+**Expected RPC Signatures:**
 ```sql
-CREATE OR REPLACE FUNCTION check_and_reset_quota(p_user_id UUID)
+-- Function 1: Check quota (read-only)
+CREATE OR REPLACE FUNCTION public.check_quota()
 RETURNS JSON
 AS $$
--- Implementation
+RETURN json_build_object(
+  'can_generate', v_can_generate,
+  'quota_remaining', v_quota_remaining,
+  'current_count', v_current_count,
+  'hours_until_reset', v_hours_until_reset
+);
+$$ LANGUAGE plpgsql SECURITY INVOKER;
+
+-- Function 2: Record generation (consumes quota)
+CREATE OR REPLACE FUNCTION public.record_generation(p_generated_count INTEGER)
+RETURNS JSON
+AS $$
+-- Uses optimistic locking for race condition protection
+UPDATE profiles 
+SET generations_count = generations_count + 1
+WHERE id = v_user_id AND generations_count < 10
+RETURNING generations_count INTO v_new_count;
+
 RETURN json_build_object(
   'generation_log_id', v_log_id,
-  'generations_count', v_count
+  'generations_count', v_new_count,
+  'quota_remaining', 10 - v_new_count
 );
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY INVOKER;
 ```
 
 **Validation:**
-- Test RPC via Supabase SQL editor
-- Verify generation_logs entries created
-- Test quota reset after 24 hours
-- Verify exception thrown when quota exceeded
+- Test `check_quota` via Supabase SQL editor
+- Verify lazy reset works after 24 hours
+- Test `record_generation` with actual counts
+- Verify optimistic locking prevents race conditions
+- Confirm generation_logs entries have accurate counts
 
 ---
 
@@ -1209,67 +1381,147 @@ Requirements:
 - Schema enforced via `zodTextFormat()` instead of `response_format`
 - Output automatically parsed and validated against Zod schema
 
-### B. Database RPC Function Example
+### B. Database RPC Functions Example
+
+#### Function 1: check_quota (Read-Only Check)
 
 ```sql
-CREATE OR REPLACE FUNCTION check_and_reset_quota(p_user_id UUID)
+CREATE OR REPLACE FUNCTION public.check_quota()
 RETURNS JSON
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 AS $$
 DECLARE
-  v_profile RECORD;
-  v_hours_since_reset INTEGER;
-  v_log_id UUID;
+  v_user_id UUID;
+  v_current_count INTEGER;
+  v_last_reset TIMESTAMPTZ;
+  v_hours_since_reset NUMERIC;
+  v_can_generate BOOLEAN;
+  v_quota_remaining INTEGER;
 BEGIN
-  -- Get user profile with lock
-  SELECT * INTO v_profile
-  FROM profiles
-  WHERE id = p_user_id
-  FOR UPDATE;
+  -- Get current user from auth context
+  v_user_id := auth.uid();
+  
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+  
+  -- Fetch quota state
+  SELECT generations_count, last_reset_date
+  INTO v_current_count, v_last_reset
+  FROM public.profiles
+  WHERE id = v_user_id;
   
   IF NOT FOUND THEN
     RAISE EXCEPTION 'User profile not found';
   END IF;
   
-  -- Calculate hours since last reset
-  v_hours_since_reset := EXTRACT(EPOCH FROM (NOW() - v_profile.last_reset_date)) / 3600;
+  -- Calculate hours since reset
+  v_hours_since_reset := EXTRACT(EPOCH FROM (NOW() - v_last_reset)) / 3600;
   
-  -- Reset quota if more than 24 hours passed
+  -- Lazy reset if 24+ hours passed (only resets counter, doesn't increment)
   IF v_hours_since_reset >= 24 THEN
-    UPDATE profiles
+    UPDATE public.profiles
     SET generations_count = 0,
-        last_reset_date = NOW()
-    WHERE id = p_user_id;
+        last_reset_date = NOW(),
+        updated_at = NOW()
+    WHERE id = v_user_id;
     
-    v_profile.generations_count := 0;
+    v_current_count := 0;
   END IF;
   
-  -- Check if quota exceeded
-  IF v_profile.generations_count >= 10 THEN
-    RAISE EXCEPTION 'Quota exceeded: % generations used', v_profile.generations_count;
-  END IF;
+  -- Determine quota status
+  v_can_generate := v_current_count < 10;
+  v_quota_remaining := 10 - v_current_count;
   
-  -- Create generation log entry (generated_count will be updated later)
-  INSERT INTO generation_logs (user_id, generated_count)
-  VALUES (p_user_id, 0)
-  RETURNING id INTO v_log_id;
-  
-  -- Increment quota and update last generation date
-  UPDATE profiles
-  SET generations_count = generations_count + 1,
-      last_generation_date = NOW()
-  WHERE id = p_user_id;
-  
-  -- Return result
+  -- Return quota information
   RETURN json_build_object(
-    'generation_log_id', v_log_id,
-    'generations_count', v_profile.generations_count + 1,
-    'quota_remaining', 10 - (v_profile.generations_count + 1)
+    'can_generate', v_can_generate,
+    'quota_remaining', v_quota_remaining,
+    'current_count', v_current_count,
+    'hours_until_reset', CASE 
+      WHEN v_hours_since_reset >= 24 THEN 24.0
+      ELSE ROUND((24 - v_hours_since_reset)::NUMERIC, 1)
+    END
   );
 END;
 $$;
 ```
+
+#### Function 2: record_generation (Consumes Quota)
+
+```sql
+CREATE OR REPLACE FUNCTION public.record_generation(p_generated_count INTEGER)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_generation_log_id UUID;
+  v_new_count INTEGER;
+  v_quota_remaining INTEGER;
+  v_last_reset TIMESTAMPTZ;
+  v_hours_since_reset NUMERIC;
+BEGIN
+  -- Get current user from auth context
+  v_user_id := auth.uid();
+  
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'Not authenticated';
+  END IF;
+  
+  IF p_generated_count <= 0 THEN
+    RAISE EXCEPTION 'Generated count must be positive, got: %', p_generated_count;
+  END IF;
+  
+  -- Get reset time for error messages
+  SELECT last_reset_date INTO v_last_reset
+  FROM public.profiles
+  WHERE id = v_user_id;
+  
+  v_hours_since_reset := EXTRACT(EPOCH FROM (NOW() - v_last_reset)) / 3600;
+  
+  -- Update quota with optimistic locking (revalidates quota)
+  -- This prevents race conditions
+  UPDATE public.profiles
+  SET generations_count = generations_count + 1,
+      last_generation_date = NOW(),
+      updated_at = NOW()
+  WHERE id = v_user_id
+    AND generations_count < 10  -- Optimistic lock: revalidate quota
+  RETURNING generations_count INTO v_new_count;
+  
+  -- Check if update succeeded
+  IF NOT FOUND THEN
+    -- Quota exceeded (possibly due to race condition)
+    RAISE EXCEPTION 'Daily generation limit reached (10/10). Quota resets in % hours.',
+      ROUND(24 - v_hours_since_reset, 1);
+  END IF;
+  
+  -- Create generation log with ACTUAL count
+  INSERT INTO public.generation_logs (user_id, generated_count)
+  VALUES (v_user_id, p_generated_count)
+  RETURNING id INTO v_generation_log_id;
+  
+  v_quota_remaining := 10 - v_new_count;
+  
+  -- Return result
+  RETURN json_build_object(
+    'generation_log_id', v_generation_log_id,
+    'generations_count', v_new_count,
+    'quota_remaining', v_quota_remaining
+  );
+END;
+$$;
+```
+
+**Key Architecture Benefits:**
+- **Separation of Concerns**: Check doesn't consume, record consumes
+- **Data Accuracy**: generation_logs has actual counts, not estimates
+- **Fairness**: Quota only consumed on successful generation
+- **Race Protection**: Optimistic locking in record_generation
+- **Graceful Degradation**: Failed recording doesn't lose user's flashcards
 
 ### C. TypeScript Type Definitions Reference
 
@@ -1300,7 +1552,15 @@ See Section 4 (Response Details) for comprehensive error response examples.
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2026-01-12  
+**Document Version:** 2.0  
+**Last Updated:** 2026-01-13  
 **Author:** Robert Zdanowski  
-**Status:** Ready for Implementation
+**Status:** Implemented ✅
+
+**Major Changes in v2.0:**
+- Refactored quota system from single `check_and_reset_quota` to two-phase `check_quota` + `record_generation`
+- Quota now consumed only after successful OpenAI generation (fair to users)
+- Accurate flashcard counts in generation_logs (no estimates)
+- Optimistic locking for race condition protection
+- Implemented OpenAI Responses API with `zodTextFormat()` for structured outputs
+- Enhanced error handling with graceful degradation for recording failures
