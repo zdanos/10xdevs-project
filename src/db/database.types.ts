@@ -181,10 +181,8 @@ export interface Database {
     };
     Views: Record<never, never>;
     Functions: {
-      check_and_reset_quota: {
-        Args: { p_generated_count: number };
-        Returns: string;
-      };
+      check_quota: { Args: never; Returns: Json };
+      record_generation: { Args: { p_generated_count: number }; Returns: Json };
     };
     Enums: {
       card_source_type: "AI" | "EditedAI" | "Manual";
