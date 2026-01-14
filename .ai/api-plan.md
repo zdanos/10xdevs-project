@@ -13,7 +13,7 @@ The main API resources map directly to database tables and server-side functions
 | **Flashcards** | `public.flashcards` | Study materials containing content and SM-2 algorithm data. |
 | **Profiles** | `public.profiles` | User metadata, limits, and usage statistics. |
 | **AI Generation** | *Edge Function* | Stateless endpoint for communication with OpenAI. |
-| **Reviews** | *RPC (Database Function)* | Logic for processing flashcard ratings (SM-2 algorithm). |
+| **Reviews** | *Edge Function* | Logic for processing flashcard ratings using `supermemo` library. |
 
 ---
 
@@ -134,16 +134,42 @@ The following endpoints use standard Supabase prefixes:
 
 #### **Process Review (SM-2 Algorithm)**
 * **Method:** `POST`
-* **URL:** `/rest/v1/rpc/process_review`
-* **Description:** Calls a stored procedure to calculate the next review interval based on user rating.
+* **URL:** `/functions/v1/process-review`
+* **Description:** Astro API endpoint that processes a flashcard review using the open-source `supermemo` npm library.
 * **Request Payload:**
     ```json
     {
       "card_id": "flashcard_uuid",
-      "rating": 3 // 1=Again, 2=Hard, 3=Good, 4=Easy
+      "rating": "good"
     }
     ```
-* **Business Logic:** Updates `interval`, `repetition_number`, `easiness_factor`, and `next_review_date`.
+* **Rating Scale (UI → SM-2 Mapping):**
+    The PRD defines 4 UI buttons which are mapped to the `supermemo` library's 0-5 quality scale:
+    
+    | UI Button | SM-2 Grade | Description |
+    |-----------|------------|-------------|
+    | **Again** | `1` | Complete blackout, wrong answer |
+    | **Hard** | `3` | Correct but with significant difficulty |
+    | **Good** | `4` | Correct with some hesitation |
+    | **Easy** | `5` | Perfect, instant recall |
+    
+    *Note: Grades `0` (total blackout) and `2` (wrong but easy to recall) are not exposed in the UI for simplicity.*
+* **Response Payload (Success 200):**
+    ```json
+    {
+      "id": "flashcard_uuid",
+      "repetition_number": 2,
+      "easiness_factor": 2.5,
+      "interval": 6,
+      "next_review_date": "2026-01-20T00:00:00Z"
+    }
+    ```
+* **Business Logic:**
+    1.  Validates user owns the flashcard (via RLS).
+    2.  Fetches current SM-2 state (`interval`, `repetition_number`, `easiness_factor`).
+    3.  Calls `supermemo` library with current state and rating.
+    4.  Updates flashcard with new SM-2 values and `next_review_date`.
+    5.  Returns updated flashcard data.
 
 ### 2.5. Profiles & User Data
 
@@ -197,4 +223,25 @@ The following endpoints use standard Supabase prefixes:
     * The Edge Function (`/generate-flashcards`) **does not save** to the database. It returns ephemeral JSON.
     * The user must explicitly verify and "Save" the cards, triggering the `POST /flashcards` endpoint. This fulfills the "User Verification" requirement.
 * **Spaced Repetition (SM-2):**
-    * Logic is encapsulated in the `process_review` RPC. The client does not calculate the next date; it only submits the rating. This ensures algorithm consistency.
+    * Implemented using the open-source [`supermemo`](https://www.npmjs.com/package/supermemo) npm library for Node.js.
+    * **Simplified Rating Scale:** The PRD specifies 4 user-facing buttons (Again, Hard, Good, Easy) which are mapped to the library's 6-grade scale (0-5). This simplification improves UX while maintaining algorithm effectiveness.
+    * Logic is encapsulated in the `/functions/v1/process-review` endpoint. The client submits one of 4 ratings; the server maps it to SM-2 grade and calculates the next review date.
+    * The library handles all SM-2 calculations (easiness factor, interval, repetition count), ensuring algorithm consistency without custom implementation.
+    * Example usage in endpoint:
+      ```typescript
+      import { supermemo } from 'supermemo';
+      
+      // Map 4 UI buttons to SM-2 grades
+      const gradeMap: Record<string, number> = {
+        'again': 1,
+        'hard': 3,
+        'good': 4,
+        'easy': 5
+      };
+      
+      const result = supermemo(
+        { interval: card.interval, repetition: card.repetition_number, efactor: card.easiness_factor },
+        gradeMap[rating]
+      );
+      // result: { interval, repetition, efactor }
+      ```
