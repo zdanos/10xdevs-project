@@ -17,7 +17,7 @@ The **Generate Flashcards** endpoint accepts user-provided text and leverages Op
 3. Check user's daily quota via database RPC (read-only operation)
 4. Send text to OpenAI API for flashcard generation
 5. Record successful generation and consume quota with actual count
-6. Return generated flashcards and remaining quota to client
+6. Return generated flashcards, generation_id for metrics tracking, and remaining quota to client
 
 ---
 
@@ -93,14 +93,15 @@ export interface GenerateFlashcardsCommand {
 
 #### GenerateFlashcardsResponseDTO (Response)
 ```typescript
-// Defined in: src/types.ts (lines 106-109)
+// Defined in: src/types.ts
 export interface GenerateFlashcardsResponseDTO {
   flashcards: GeneratedFlashcardDTO[];
+  generation_id: string;
   quota_remaining: number;
 }
 ```
 
-**Usage:** API response structure
+**Usage:** API response structure. The `generation_id` links saved flashcards back to their originating AI generation session for accurate metrics calculation (AI Acceptance Rate, Clean vs Edited Ratio).
 
 #### GeneratedFlashcardDTO (Response Item)
 ```typescript
@@ -176,6 +177,7 @@ const OpenAIResponseSchema = z.object({
       "back": "Humanism, artistic innovation, and scientific inquiry"
     }
   ],
+  "generation_id": "550e8400-e29b-41d4-a716-446655440000",
   "quota_remaining": 7
 }
 ```
@@ -186,6 +188,7 @@ const OpenAIResponseSchema = z.object({
 | `flashcards` | `GeneratedFlashcardDTO[]` | Array of generated flashcard proposals |
 | `flashcards[].front` | `string` | Question text (max 200 chars) |
 | `flashcards[].back` | `string` | Answer text (max 500 chars) |
+| `generation_id` | `string` | UUID of the generation_log entry for metrics tracking |
 | `quota_remaining` | `number` | Remaining generations available in current 24h period (0-10) |
 
 ### Error Responses
@@ -355,15 +358,15 @@ const OpenAIResponseSchema = z.object({
    |         |         |
    |         |<--------+
    |         |
-   |         |--> FAIL: Log warning, return flashcards anyway (better UX)
+   |         |--> FAIL: Return 500 error (data integrity for metrics)
    |         |
-   |         |--> SUCCESS: Return updated quota information
+   |         |--> SUCCESS: Return generation_log_id and updated quota information
    |         |
    |<--------+
    |
    |--> [7] Construct response
    |         |
-   |         |--> Combine flashcards + quota_remaining
+   |         |--> Combine flashcards + generation_id + quota_remaining
    |         |
    |<--------+
    |
@@ -371,7 +374,7 @@ const OpenAIResponseSchema = z.object({
 [Return 200 OK with GenerateFlashcardsResponseDTO]
    |
    v
-[Client receives flashcards in Staging Area]
+[Client receives flashcards with generation_id in Staging Area]
 ```
 
 ### 5.2. Database Interactions
@@ -416,6 +419,7 @@ The quota system uses two separate RPC functions for better data consistency and
 - Accurate flashcard counts in generation_logs (no estimates)
 - Optimistic locking prevents race conditions
 - Fair to users (no quota loss on system failures)
+- Generation_id enables accurate metrics tracking (AI Acceptance Rate, Clean vs Edited Ratio)
 
 ### 5.3. External Service Interactions
 
@@ -682,7 +686,6 @@ if (error || !user) {
 
 **Causes:**
 - User has reached 10 generations in current 24-hour period (detected at check phase)
-- Race condition: quota consumed by concurrent request between check and record
 
 **Handling:**
 ```typescript
@@ -711,13 +714,23 @@ if (!quotaStatus.canGenerate) {
 // Phase 2: After successful generation, record it
 try {
   const result = await recordGeneration(supabase, userId, flashcards.length);
-  return { flashcards, quota_remaining: result.quotaRemaining };
+  return { 
+    flashcards, 
+    generation_id: result.generationLogId,
+    quota_remaining: result.quotaRemaining 
+  };
 } catch (error) {
-  if (error instanceof QuotaExceededError) {
-    // Race condition: quota was consumed between check and record
-    // User still gets flashcards (logged as warning)
-    console.warn('Race condition: Quota exceeded after generation');
-    return { flashcards, quota_remaining: 0 }; // Best estimate
+  if (error instanceof QuotaExceededError || error instanceof QuotaServiceError) {
+    // Recording failed - return 500 error to maintain data integrity
+    // Without generation_id, we can't properly track metrics
+    console.error('Failed to record generation:', error.message);
+    return new Response(
+      JSON.stringify({
+        error: 'Internal server error',
+        message: 'Failed to record generation. Please try again.'
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }
 ```
@@ -1155,24 +1168,25 @@ User has 1 quota left, makes 2 parallel requests:
    try {
      const result = await recordGeneration(supabase, userId, flashcards.length);
      
-     // 4. Return successful response
+     // 4. Return successful response with generation_id for metrics tracking
      return new Response(JSON.stringify({ 
-       flashcards, 
+       flashcards,
+       generation_id: result.generationLogId,
        quota_remaining: result.quotaRemaining 
      }), {
        status: 200,
        headers: { 'Content-Type': 'application/json' }
      });
    } catch (error) {
-     // Handle quota exceeded from race condition
-     if (error instanceof QuotaExceededError) {
-       // Still return flashcards (user shouldn't lose generated content)
-       console.warn('Race condition: quota exceeded after generation');
-       return new Response(JSON.stringify({ 
-         flashcards, 
-         quota_remaining: 0 
+     // Handle recording failures
+     // Without generation_id, we can't properly track metrics, so return error
+     if (error instanceof QuotaExceededError || error instanceof QuotaServiceError) {
+       console.error('Failed to record generation:', error.message);
+       return new Response(JSON.stringify({
+         error: 'Internal server error',
+         message: 'Failed to record generation. Please try again.'
        }), {
-         status: 200,
+         status: 500,
          headers: { 'Content-Type': 'application/json' }
        });
      }
@@ -1521,7 +1535,8 @@ $$;
 - **Data Accuracy**: generation_logs has actual counts, not estimates
 - **Fairness**: Quota only consumed on successful generation
 - **Race Protection**: Optimistic locking in record_generation
-- **Graceful Degradation**: Failed recording doesn't lose user's flashcards
+- **Metrics Integrity**: Generation_id enables accurate tracking of AI acceptance rates and user edits
+- **Data Integrity**: Failed recording returns error (500) to prevent inconsistent metrics
 
 ### C. TypeScript Type Definitions Reference
 
@@ -1536,6 +1551,7 @@ export interface GenerateFlashcardsCommand {
 // Response DTO
 export interface GenerateFlashcardsResponseDTO {
   flashcards: GeneratedFlashcardDTO[];
+  generation_id: string;  // UUID for linking saved flashcards to generation session
   quota_remaining: number;
 }
 
@@ -1552,10 +1568,15 @@ See Section 4 (Response Details) for comprehensive error response examples.
 
 ---
 
-**Document Version:** 2.0  
-**Last Updated:** 2026-01-13  
+**Document Version:** 2.1  
+**Last Updated:** 2026-01-14  
 **Author:** Robert Zdanowski  
 **Status:** Implemented ✅
+
+**Major Changes in v2.1:**
+- Added `generation_id` to response for accurate metrics tracking (AI Acceptance Rate, Clean vs Edited Ratio)
+- Updated error handling: return 500 error instead of flashcards when recording fails (maintains data integrity)
+- `generation_id` links saved flashcards back to their originating AI generation session
 
 **Major Changes in v2.0:**
 - Refactored quota system from single `check_and_reset_quota` to two-phase `check_quota` + `record_generation`
