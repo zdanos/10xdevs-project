@@ -116,6 +116,22 @@ export interface GenerateFlashcardsResponseDTO {
  */
 export type ListDecksResponseDTO = DeckDTO[];
 
+/**
+ * ListFlashcardsResponseDTO - Response from list flashcards endpoint
+ * Used in: GET /api/flashcards
+ *
+ * Returns an array of all flashcards in a specific deck ordered by creation date ascending
+ */
+export type ListFlashcardsResponseDTO = FlashcardDTO[];
+
+/**
+ * BulkCreateFlashcardsCommand - Command model for bulk flashcard creation
+ * Used in: POST /api/flashcards (array payload)
+ *
+ * Validates array length (1-50 items) to prevent abuse
+ */
+export type BulkCreateFlashcardsCommand = CreateFlashcardCommand[];
+
 // ============================================================================
 // Command Models - Used for API requests (write operations)
 // ============================================================================
