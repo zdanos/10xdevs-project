@@ -23,20 +23,21 @@ export const prerender = false;
  * 2. Check user's daily quota (10 generations per 24h) - no side effects
  * 3. Generate flashcards using OpenAI Responses API
  * 4. Record successful generation and consume quota with actual flashcard count
- * 5. Return flashcards with remaining quota information
+ * 5. Return flashcards with generation_id for metrics tracking and remaining quota
  *
  * **Authentication:**
  * Currently uses DEFAULT_USER_ID for testing purposes.
  * TODO: Implement JWT token authentication in production
  *
  * @param context - Astro API context containing request and locals
- * @returns Response with flashcards and quota information or error
+ * @returns Response with flashcards, generation_id, and quota information or error
  *
  * @example Success Response (200):
  * {
  *   "flashcards": [
  *     { "front": "Question?", "back": "Answer" }
  *   ],
+ *   "generation_id": "550e8400-e29b-41d4-a716-446655440000",
  *   "quota_remaining": 7
  * }
  *
@@ -258,60 +259,61 @@ export async function POST(context: APIContext): Promise<Response> {
           timestamp: new Date().toISOString(),
         });
 
-        // Return flashcards with quota from initial check
-        // User gets their flashcards but we log the inconsistency
-        const responseBody: GenerateFlashcardsResponseDTO = {
-          flashcards,
-          quota_remaining: quotaStatus.quotaRemaining - 1, // Best estimate
-        };
-
-        return new Response(JSON.stringify(responseBody), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        // Without a proper generation_id, we return an error instead of partial data
+        // This ensures data integrity for metrics tracking
+        return new Response(
+          JSON.stringify({
+            error: "Internal server error",
+            message: "Failed to record generation. Please try again.",
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
       }
 
       // Handle database errors during recording
       if (error instanceof QuotaServiceError) {
         // Generation succeeded but we couldn't record it in the database
-        // Best UX: Return flashcards anyway, log error for monitoring
-        console.error("Failed to record generation (user still receives flashcards):", {
+        // Return error to maintain data integrity for metrics
+        console.error("Failed to record generation:", {
           userId,
           flashcardsCount: flashcards.length,
           error: error.message,
           timestamp: new Date().toISOString(),
         });
 
-        // Return flashcards with quota from initial check
-        const responseBody: GenerateFlashcardsResponseDTO = {
-          flashcards,
-          quota_remaining: quotaStatus.quotaRemaining - 1, // Best estimate
-        };
-
-        return new Response(JSON.stringify(responseBody), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({
+            error: "Internal server error",
+            message: "Failed to record generation. Please try again.",
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
       }
 
       // Unexpected error during recording
-      console.error("Unexpected error recording generation (user still receives flashcards):", {
+      console.error("Unexpected error recording generation:", {
         userId,
         flashcardsCount: flashcards.length,
         error: error instanceof Error ? error.message : String(error),
         timestamp: new Date().toISOString(),
       });
 
-      // Return flashcards anyway
-      const responseBody: GenerateFlashcardsResponseDTO = {
-        flashcards,
-        quota_remaining: quotaStatus.quotaRemaining - 1, // Best estimate
-      };
-
-      return new Response(JSON.stringify(responseBody), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Internal server error",
+          message: "Failed to record generation. Please try again.",
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
 
     // ==========================================
@@ -319,6 +321,7 @@ export async function POST(context: APIContext): Promise<Response> {
     // ==========================================
     const responseBody: GenerateFlashcardsResponseDTO = {
       flashcards,
+      generation_id: recordResult.generationLogId,
       quota_remaining: recordResult.quotaRemaining,
     };
 

@@ -101,10 +101,12 @@ export interface GeneratedFlashcardDTO {
  * GenerateFlashcardsResponseDTO - Response from AI generation endpoint
  * Used in: POST /functions/v1/generate-flashcards (Section 2.1 of API plan)
  *
- * Contains the generated flashcard proposals and remaining quota information.
+ * Contains the generated flashcard proposals, generation ID for metrics tracking,
+ * and remaining quota information.
  */
 export interface GenerateFlashcardsResponseDTO {
   flashcards: GeneratedFlashcardDTO[];
+  generation_id: string;
   quota_remaining: number;
 }
 
@@ -175,8 +177,14 @@ export type UpdateDeckCommand = Pick<TablesUpdate<"decks">, "name">;
  * - front: Question text (max 200 chars, validated by DB)
  * - back: Answer text (max 500 chars, validated by DB)
  * - creation_source: Must be 'AI', 'EditedAI', or 'Manual'
+ *
+ * Optional fields:
+ * - generation_id: Links flashcard to its AI generation session for metrics tracking
  */
-export type CreateFlashcardCommand = Pick<TablesInsert<"flashcards">, "deck_id" | "front" | "back" | "creation_source">;
+export type CreateFlashcardCommand = Pick<
+  TablesInsert<"flashcards">,
+  "deck_id" | "front" | "back" | "creation_source" | "generation_id"
+>;
 
 /**
  * UpdateFlashcardCommand - Request payload for updating flashcard content
