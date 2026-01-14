@@ -108,6 +108,14 @@ export interface GenerateFlashcardsResponseDTO {
   quota_remaining: number;
 }
 
+/**
+ * ListDecksResponseDTO - Response from list decks endpoint
+ * Used in: GET /api/decks
+ *
+ * Returns an array of all user's decks ordered by creation date descending
+ */
+export type ListDecksResponseDTO = DeckDTO[];
+
 // ============================================================================
 // Command Models - Used for API requests (write operations)
 // ============================================================================
