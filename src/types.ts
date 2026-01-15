@@ -134,6 +134,32 @@ export type ListFlashcardsResponseDTO = FlashcardDTO[];
  */
 export type BulkCreateFlashcardsCommand = CreateFlashcardCommand[];
 
+/**
+ * FetchStudyQueueResponseDTO - Array of flashcards due for review
+ * Used in: GET /api/study/queue
+ *
+ * Returns flashcards that are due for review based on SM-2 scheduling,
+ * ordered by next_review_date ascending.
+ */
+export type FetchStudyQueueResponseDTO = FlashcardDTO[];
+
+/**
+ * ProcessReviewResponseDTO - Updated flashcard with new SM-2 state
+ * Used in: POST /api/study/review
+ *
+ * Returns only the fields relevant to the study UI:
+ * - id: To identify the flashcard
+ * - SM-2 state fields: For algorithm tracking and debugging
+ * - next_review_date: To determine when card should appear again
+ */
+export interface ProcessReviewResponseDTO {
+  id: string;
+  repetition_number: number;
+  easiness_factor: number;
+  interval: number;
+  next_review_date: string; // ISO 8601 timestamp
+}
+
 // ============================================================================
 // Command Models - Used for API requests (write operations)
 // ============================================================================
@@ -211,3 +237,52 @@ export interface ProcessReviewCommand {
   card_id: string;
   rating: ReviewRating;
 }
+
+/**
+ * FetchStudyQueueCommand - Query parameters for fetching study queue
+ * Used in: GET /api/study/queue
+ *
+ * Optional filters to customize the study queue:
+ * - deck_id: Filter flashcards to a specific deck
+ * - limit: Maximum number of flashcards to return (default 20, max 100)
+ */
+export interface FetchStudyQueueCommand {
+  deck_id?: string; // Optional UUID
+  limit?: number; // Optional, default 20, max 100
+}
+
+/**
+ * ProcessReviewCommandV2 - Request payload for study/review endpoint
+ * Used in: POST /api/study/review
+ *
+ * Uses string literal ratings instead of numeric enum for better API ergonomics.
+ * The ratings map to SM-2 grades as follows:
+ * - "again" → 1 (Complete blackout, wrong answer)
+ * - "hard" → 3 (Correct but with significant difficulty)
+ * - "good" → 4 (Correct with some hesitation)
+ * - "easy" → 5 (Perfect, instant recall)
+ */
+export interface ProcessReviewCommandV2 {
+  card_id: string;
+  rating: "again" | "hard" | "good" | "easy";
+}
+
+// ============================================================================
+// Internal Service Types - Used for SM-2 algorithm implementation
+// ============================================================================
+
+/**
+ * SM2_GRADE_MAP - Mapping from UI-friendly rating strings to SM-2 grades
+ * Used internally by the study service to convert user ratings to numeric grades
+ */
+export const SM2_GRADE_MAP = {
+  again: 1,
+  hard: 3,
+  good: 4,
+  easy: 5,
+} as const;
+
+/**
+ * SM2Rating - Type alias for the rating keys in SM2_GRADE_MAP
+ */
+export type SM2Rating = keyof typeof SM2_GRADE_MAP;
