@@ -160,21 +160,46 @@ Ze względu na wymagania "Lazy Reset" i spójności danych, część logiki znaj
 * **Cel**: Automatyczne tworzenie rekordu w `profiles` po rejestracji w `auth.users`.
 * **Uruchamianie**: `AFTER INSERT ON auth.users`.
 
-### 2. Funkcja `check_and_reset_quota` (RPC)
+### 2. Funkcja `check_quota` (RPC)
 
-* **Cel**: Obsługa limitu 10 generowań na dobę.
+* **Cel**: Sprawdzenie dostępności limitu 10 generowań na dobę (operacja tylko do odczytu).
 * **Logika**:
 1. Pobierz `generations_count` i `last_reset_date` dla usera.
 2. Sprawdź, czy od `last_reset_date` minęło więcej niż 24h.
-3. Jeśli tak: zresetuj `generations_count` do 0 i ustaw `last_reset_date` na `NOW()`.
-4. Jeśli nie: sprawdź, czy `generations_count` < 10.
-5. Jeśli limit osiągnięty: Rzuć wyjątek (błąd aplikacji).
-6. Jeśli limit dostępny: Zwiększ `generations_count` o +1, zaktualizuj `last_generation_date` i dodaj wpis do `generation_logs`.
+3. Jeśli tak: zresetuj `generations_count` do 0 i ustaw `last_reset_date` na `NOW()` (ale NIE zwiększaj licznika).
+4. Oblicz czy użytkownik może generować: `can_generate = generations_count < 10`.
+5. Oblicz pozostałe generowania: `quota_remaining = 10 - generations_count`.
 
 
-* **Zwraca**: `BOOLEAN` (sukces) lub `ID` nowego logu generowania.
+* **Zwraca**: JSON z polami: `can_generate`, `quota_remaining`, `current_count`, `hours_until_reset`.
+* **Efekty uboczne**: Może zresetować licznik (jeśli minęło 24h), ale NIE zwiększa go ani nie tworzy wpisów w `generation_logs`.
 
-### 3. Trigger `handle_updated_at`
+### 3. Funkcja `record_generation` (RPC)
+
+* **Cel**: Rejestracja udanego generowania i konsumpcja limitu z rzeczywistą liczbą wygenerowanych fiszek.
+* **Parametry**: `p_generated_count` (INTEGER) - faktyczna liczba fiszek zwrócona przez AI.
+* **Logika**:
+1. Sprawdź aktualny stan `generations_count` dla usera.
+2. Zwiększ `generations_count` o +1 z optymistycznym blokadą (`WHERE generations_count < 10`).
+3. Jeśli aktualizacja się nie powiodła (limit został osiągnięty w międzyczasie): Rzuć wyjątek.
+4. Jeśli sukces: Dodaj wpis do `generation_logs` z faktyczną liczbą wygenerowanych fiszek (`p_generated_count`).
+5. Zaktualizuj `last_generation_date` na `NOW()`.
+
+
+* **Zwraca**: JSON z polami: `generation_log_id`, `generations_count`, `quota_remaining`.
+* **Zabezpieczenia**: Optymistyczne blokowanie (`WHERE generations_count < 10`) chroni przed race conditions w przypadku równoczesnych żądań.
+
+**Architektura dwufazowa:**
+- **Faza 1 (check_quota)**: Sprawdzenie przed generowaniem - bez efektów ubocznych na licznik.
+- **Faza 2 (record_generation)**: Rejestracja po udanym generowaniu - konsumpcja limitu z dokładnymi danymi.
+
+**Korzyści:**
+- Limit konsumowany tylko po udanym generowaniu AI.
+- Dokładne dane w `generation_logs` (rzeczywiste liczby, nie szacunki).
+- Sprawiedliwe dla użytkowników (brak utraty limitu przy błędach systemu).
+- `generation_id` umożliwia dokładne śledzenie metryk (AI Acceptance Rate, Clean vs Edited Ratio).
+
+### 4. Trigger `handle_updated_at`
 
 * **Cel**: Automatyczna aktualizacja pola `updated_at` przy każdej modyfikacji rekordu.
 * **Zastosowanie**: Tabele `profiles`, `decks`, `flashcards`.
