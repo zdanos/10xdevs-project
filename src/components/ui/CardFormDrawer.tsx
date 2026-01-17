@@ -166,7 +166,7 @@ export default function CardFormDrawer({ isOpen, mode, initialData, onSave, onCa
             <button
               onClick={handleCancel}
               className="p-2 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100
-                transition-colors duration-200"
+                transition-colors duration-200 cursor-pointer"
               aria-label="Close"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
@@ -191,7 +191,13 @@ export default function CardFormDrawer({ isOpen, mode, initialData, onSave, onCa
                 id="card-front"
                 type="text"
                 value={formState.front}
-                onChange={(e) => setFormState((prev) => ({ ...prev, front: e.target.value, errors: { ...prev.errors, front: undefined } }))}
+                onChange={(e) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    front: e.target.value,
+                    errors: { ...prev.errors, front: undefined },
+                  }))
+                }
                 placeholder="Enter question..."
                 maxLength={MAX_FRONT_LENGTH}
                 className={`w-full px-4 py-3 rounded-lg border-2 ${
@@ -204,7 +210,9 @@ export default function CardFormDrawer({ isOpen, mode, initialData, onSave, onCa
                 ) : (
                   <span className="text-neutral-500">Enter the question or prompt</span>
                 )}
-                <span className={`font-mono ${formState.front.length > MAX_FRONT_LENGTH ? "text-red-600" : "text-neutral-600"}`}>
+                <span
+                  className={`font-mono ${formState.front.length > MAX_FRONT_LENGTH ? "text-red-600" : "text-neutral-600"}`}
+                >
                   {formState.front.length}/{MAX_FRONT_LENGTH}
                 </span>
               </div>
@@ -218,7 +226,13 @@ export default function CardFormDrawer({ isOpen, mode, initialData, onSave, onCa
               <textarea
                 id="card-back"
                 value={formState.back}
-                onChange={(e) => setFormState((prev) => ({ ...prev, back: e.target.value, errors: { ...prev.errors, back: undefined } }))}
+                onChange={(e) =>
+                  setFormState((prev) => ({
+                    ...prev,
+                    back: e.target.value,
+                    errors: { ...prev.errors, back: undefined },
+                  }))
+                }
                 placeholder="Enter answer..."
                 rows={6}
                 maxLength={MAX_BACK_LENGTH}
@@ -232,7 +246,9 @@ export default function CardFormDrawer({ isOpen, mode, initialData, onSave, onCa
                 ) : (
                   <span className="text-neutral-500">Enter the answer or explanation</span>
                 )}
-                <span className={`font-mono ${formState.back.length > MAX_BACK_LENGTH ? "text-red-600" : "text-neutral-600"}`}>
+                <span
+                  className={`font-mono ${formState.back.length > MAX_BACK_LENGTH ? "text-red-600" : "text-neutral-600"}`}
+                >
                   {formState.back.length}/{MAX_BACK_LENGTH}
                 </span>
               </div>
@@ -246,7 +262,7 @@ export default function CardFormDrawer({ isOpen, mode, initialData, onSave, onCa
               onClick={handleCancel}
               className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg
                 hover:bg-neutral-50 hover:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-offset-2
-                focus:ring-neutral-500 transition-colors duration-200"
+                focus:ring-neutral-500 transition-colors duration-200 cursor-pointer"
             >
               Cancel
             </button>
@@ -257,7 +273,7 @@ export default function CardFormDrawer({ isOpen, mode, initialData, onSave, onCa
               className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg
                 hover:bg-blue-700 disabled:bg-neutral-300 disabled:cursor-not-allowed
                 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-                transition-colors duration-200"
+                transition-colors duration-200 cursor-pointer"
             >
               Save Changes
             </button>

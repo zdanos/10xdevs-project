@@ -150,7 +150,7 @@ export default function DeckSelectionModal({
               onClick={onCancel}
               disabled={isSaving}
               className="p-2 text-neutral-400 hover:text-neutral-600 rounded-lg hover:bg-neutral-100
-                disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors duration-200"
               aria-label="Close"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
@@ -214,7 +214,7 @@ export default function DeckSelectionModal({
                     key={deck.id}
                     type="button"
                     onClick={() => setState((prev) => ({ ...prev, selectedDeckId: deck.id, newDeckName: "" }))}
-                    className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200
+                    className={`w-full p-4 rounded-lg border-2 text-left transition-all duration-200 cursor-pointer
                       ${
                         state.selectedDeckId === deck.id
                           ? "border-blue-500 bg-blue-50 ring-2 ring-blue-500 ring-offset-2"
@@ -307,7 +307,7 @@ export default function DeckSelectionModal({
               disabled={isSaving}
               className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg
                 hover:bg-neutral-50 hover:border-neutral-400 disabled:opacity-50 disabled:cursor-not-allowed
-                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500 transition-colors duration-200"
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neutral-500 transition-colors duration-200 cursor-pointer"
             >
               Cancel
             </button>
@@ -317,7 +317,7 @@ export default function DeckSelectionModal({
               disabled={!canConfirm}
               className="inline-flex items-center gap-2 px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg
                 hover:bg-green-700 disabled:bg-neutral-300 disabled:cursor-not-allowed
-                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200"
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 cursor-pointer"
             >
               {isSaving ? (
                 <>

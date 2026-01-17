@@ -53,7 +53,7 @@ export default function GeneratorPage() {
             </div>
             <button
               onClick={() => actions.handleTextChange(state.sourceText)}
-              className="text-red-600 hover:text-red-800"
+              className="text-red-600 hover:text-red-800 cursor-pointer"
               aria-label="Dismiss error"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

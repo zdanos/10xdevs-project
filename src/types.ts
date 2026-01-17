@@ -390,3 +390,57 @@ export interface ApiError {
   details?: Record<string, string[]>; // Additional error details
   retry_after?: number; // Seconds until retry (for 403)
 }
+
+// ============================================================================
+// ViewModels - Used for Decks Library View
+// ============================================================================
+
+/**
+ * DecksLibraryViewState - Complete state for Deck Library view
+ * Used in: useDecksLibrary custom hook
+ *
+ * Manages the entire deck library workflow including:
+ * - Deck listing and filtering
+ * - Search functionality
+ * - Deck creation modal state
+ * - Loading and error states
+ */
+export interface DecksLibraryViewState {
+  // Data state
+  decks: DeckDTO[];
+  filteredDecks: DeckDTO[];
+
+  // Search state
+  searchQuery: string;
+
+  // Loading/error states
+  isLoading: boolean;
+  error: ApiError | null;
+
+  // Modal state
+  showCreateModal: boolean;
+  isCreating: boolean;
+  createError: string | null;
+}
+
+/**
+ * CreateDeckFormState - State for create deck modal form
+ * Used in: CreateDeckModal component
+ *
+ * Tracks form input, validation, and submission state
+ */
+export interface CreateDeckFormState {
+  name: string;
+  validationError: string | null;
+  isValid: boolean;
+}
+
+/**
+ * DeckFilterOptions - Options for filtering decks
+ * Used in: Search and filter logic
+ */
+export interface DeckFilterOptions {
+  query: string;
+  sortBy: "name" | "created_at" | "card_count";
+  sortDirection: "asc" | "desc";
+}
