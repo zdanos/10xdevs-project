@@ -13,6 +13,8 @@ interface CardFormDrawerProps {
     front: string;
     back: string;
   };
+  isSaving?: boolean;
+  saveError?: string | null;
   onSave: (front: string, back: string) => void;
   onCancel: () => void;
 }
@@ -29,7 +31,15 @@ interface CardFormState {
 const MAX_FRONT_LENGTH = 200;
 const MAX_BACK_LENGTH = 500;
 
-export default function CardFormDrawer({ isOpen, mode, initialData, onSave, onCancel }: CardFormDrawerProps) {
+export default function CardFormDrawer({
+  isOpen,
+  mode,
+  initialData,
+  isSaving = false,
+  saveError = null,
+  onSave,
+  onCancel,
+}: CardFormDrawerProps) {
   const [formState, setFormState] = useState<CardFormState>({
     front: initialData?.front || "",
     back: initialData?.back || "",
@@ -181,6 +191,13 @@ export default function CardFormDrawer({ isOpen, mode, initialData, onSave, onCa
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+            {/* Error message */}
+            {saveError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+                {saveError}
+              </div>
+            )}
+
             {/* Front Input */}
             <div className="space-y-2">
               <label htmlFor="card-front" className="block text-sm font-medium text-neutral-700">
@@ -260,22 +277,23 @@ export default function CardFormDrawer({ isOpen, mode, initialData, onSave, onCa
             <button
               type="button"
               onClick={handleCancel}
+              disabled={isSaving}
               className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-lg
                 hover:bg-neutral-50 hover:border-neutral-400 focus:outline-none focus:ring-2 focus:ring-offset-2
-                focus:ring-neutral-500 transition-colors duration-200 cursor-pointer"
+                focus:ring-neutral-500 transition-colors duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
               onClick={handleSubmit}
-              disabled={!isFormValid}
-              className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg
-                hover:bg-blue-700 disabled:bg-neutral-300 disabled:cursor-not-allowed
-                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+              disabled={!isFormValid || isSaving}
+              className="px-6 py-2 text-sm font-medium text-white bg-green-600 rounded-lg
+                hover:bg-green-700 disabled:bg-neutral-300 disabled:cursor-not-allowed
+                focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500
                 transition-colors duration-200 cursor-pointer"
             >
-              Save Changes
+              {isSaving ? "Saving..." : "Save Changes"}
             </button>
           </footer>
         </div>

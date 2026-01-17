@@ -444,3 +444,79 @@ export interface DeckFilterOptions {
   sortBy: "name" | "created_at" | "card_count";
   sortDirection: "asc" | "desc";
 }
+
+// ============================================================================
+// ViewModels - Used for Deck Details View
+// ============================================================================
+
+/**
+ * DeckDetailsViewState - Complete state for Deck Details view
+ * Used in: useDeckDetails custom hook
+ *
+ * Manages the entire deck and flashcard workflow including:
+ * - Deck rename and delete operations
+ * - Flashcard CRUD operations
+ * - UI state for modals and forms
+ * - Loading and error states
+ */
+export interface DeckDetailsViewState {
+  // Core data
+  deck: DeckDTO;
+  flashcards: FlashcardDTO[];
+
+  // Flashcard operations
+  isLoadingFlashcards: boolean;
+  flashcardsError: ApiError | null;
+
+  // Deck rename operation
+  isRenamingDeck: boolean;
+  renameError: string | null;
+  originalDeckName: string | null; // For optimistic rollback
+
+  // Deck delete operation
+  isDeletingDeck: boolean;
+  deleteDeckError: string | null;
+  showDeleteDeckDialog: boolean;
+
+  // Card form state
+  showCardForm: boolean;
+  cardFormMode: "create" | "edit";
+  editingCard: FlashcardDTO | null;
+  isSavingCard: boolean;
+  saveCardError: string | null;
+
+  // Card delete operation
+  isDeletingCard: boolean;
+  deleteCardError: string | null;
+  deletingCardId: string | null;
+  showDeleteCardDialog: boolean;
+}
+
+/**
+ * CardFormState - Internal state for CardFormDrawer validation
+ * Used in: CardFormDrawer component
+ *
+ * Tracks form input and validation errors for real-time feedback
+ */
+export interface CardFormState {
+  front: string;
+  back: string;
+  validationErrors: {
+    front?: string;
+    back?: string;
+  };
+}
+
+/**
+ * DeleteConfirmationState - State for delete confirmation dialog
+ * Used in: DeleteConfirmationDialog component
+ *
+ * Manages confirmation dialog state for deck and flashcard deletion
+ */
+export interface DeleteConfirmationState {
+  isOpen: boolean;
+  type: "deck" | "flashcard";
+  itemName: string;
+  itemCount?: number; // For deck deletion
+  itemId: string | null;
+}

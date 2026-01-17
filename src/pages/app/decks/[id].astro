@@ -1,0 +1,105 @@
+---
+/**
+ * Deck Details Page - /app/decks/[id]
+ *
+ * SSR page that fetches a single deck and its flashcards.
+ * Renders the DeckDetailsView React component with initial data.
+ *
+ * Features:
+ * - Server-side data fetching for fast FCP
+ * - Error handling with user-friendly messages
+ * - Client-side hydration for interactivity
+ */
+
+import Layout from "@/layouts/Layout.astro";
+import { DeckDetailsView } from "@/components/deck-details/DeckDetailsView";
+import type { DeckDTO, FlashcardDTO, ApiError } from "@/types";
+
+// Extract deck ID from params
+const { id } = Astro.params;
+
+// Validate UUID format (basic check)
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+if (!id || !uuidRegex.test(id)) {
+  return Astro.redirect("/app/decks");
+}
+
+// Initialize state
+let initialDeck: DeckDTO | null = null;
+let initialFlashcards: FlashcardDTO[] = [];
+let initialError: ApiError | null = null;
+
+try {
+  // Fetch deck metadata
+  const deckResponse = await fetch(`${Astro.url.origin}/api/decks/${id}`, {
+    headers: {
+      cookie: Astro.request.headers.get("cookie") || "",
+    },
+  });
+
+  if (!deckResponse.ok) {
+    if (deckResponse.status === 404) {
+      // Deck not found - redirect to library
+      return Astro.redirect("/app/decks");
+    }
+
+    const errorData = await deckResponse.json();
+    initialError = {
+      error: "Fetch Error",
+      message: errorData.message || "Failed to load deck",
+    };
+  } else {
+    initialDeck = await deckResponse.json();
+
+    // Fetch flashcards for this deck
+    const flashcardsResponse = await fetch(
+      `${Astro.url.origin}/api/flashcards?deck_id=${id}`,
+      {
+        headers: {
+          cookie: Astro.request.headers.get("cookie") || "",
+        },
+      }
+    );
+
+    if (!flashcardsResponse.ok) {
+      const errorData = await flashcardsResponse.json();
+      initialError = {
+        error: "Fetch Error",
+        message: errorData.message || "Failed to load flashcards",
+      };
+    } else {
+      initialFlashcards = await flashcardsResponse.json();
+    }
+  }
+} catch (error) {
+  console.error("[Deck Details Page] SSR fetch failed:", {
+    error: error instanceof Error ? error.message : "Unknown error",
+    deckId: id,
+    timestamp: new Date().toISOString(),
+  });
+
+  initialError = {
+    error: "Server Error",
+    message: "Failed to load deck. Please try again.",
+  };
+}
+
+// If we don't have a deck and no error was set, something went wrong
+if (!initialDeck && !initialError) {
+  return Astro.redirect("/app/decks");
+}
+
+// Set page title
+const pageTitle = initialDeck ? `${initialDeck.name} - FlashCard AI` : "Deck Details - FlashCard AI";
+---
+
+<Layout title={pageTitle}>
+  <main class="min-h-screen bg-gray-50 py-8">
+    <DeckDetailsView
+      initialDeck={initialDeck!}
+      initialFlashcards={initialFlashcards}
+      initialError={initialError}
+      client:load
+    />
+  </main>
+</Layout>

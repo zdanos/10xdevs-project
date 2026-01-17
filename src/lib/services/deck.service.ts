@@ -72,6 +72,70 @@ export async function listUserDecks(supabase: SupabaseClient<Database>): Promise
 }
 
 /**
+ * Retrieves a single deck by ID with card count
+ * RLS policies ensure users can only access their own decks
+ *
+ * @param supabase - Authenticated Supabase client from context.locals
+ * @param id - UUID of the deck to retrieve
+ * @returns The deck with card_count
+ * @throws DeckServiceError if deck not found, access denied, or database query fails
+ *
+ * Used in: GET /api/decks/[id]
+ *
+ * @example
+ * const deck = await getDeck(supabase, "deck-uuid");
+ * // Returns: { id: "deck-uuid", name: "History 101", card_count: 25, ... }
+ */
+export async function getDeck(supabase: SupabaseClient<Database>, id: string): Promise<DeckDTO> {
+  try {
+    const { data, error } = await supabase
+      .from("decks")
+      .select("*, flashcards(count)")
+      .eq("id", id)
+      .single();
+
+    if (error) {
+      console.error("[DeckService] Database error during getDeck:", {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        deckId: id,
+        timestamp: new Date().toISOString(),
+      });
+      throw new DeckServiceError("Failed to fetch deck");
+    }
+
+    if (!data) {
+      console.error("[DeckService] No data returned from getDeck:", {
+        deckId: id,
+        timestamp: new Date().toISOString(),
+      });
+      throw new DeckServiceError("Deck not found or access denied");
+    }
+
+    // Transform the response to include card_count as a number
+    const { flashcards, ...deckData } = data;
+    return {
+      ...deckData,
+      card_count: flashcards?.[0]?.count ?? 0,
+    };
+  } catch (error) {
+    // Re-throw known error types
+    if (error instanceof DeckServiceError) {
+      throw error;
+    }
+
+    // Handle unexpected errors
+    console.error("[DeckService] Unexpected error in getDeck:", {
+      error: error instanceof Error ? error.message : "Unknown error",
+      deckId: id,
+      timestamp: new Date().toISOString(),
+    });
+    throw new DeckServiceError("Failed to fetch deck due to an unexpected error");
+  }
+}
+
+/**
  * Creates a new deck for the authenticated user
  * For testing purposes, uses DEFAULT_USER_ID until authentication is implemented
  *
