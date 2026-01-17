@@ -126,7 +126,12 @@ export default function DeckSelectionModal({
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 flex items-center justify-center z-50 p-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div
+        className="fixed inset-0 flex items-center justify-center z-50 p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
         <div
           className="bg-white rounded-2xl shadow-xl max-h-[90vh] w-full max-w-2xl flex flex-col overflow-hidden animate-fade-in"
           onClick={(e) => e.stopPropagation()}
@@ -220,12 +225,16 @@ export default function DeckSelectionModal({
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-neutral-900 truncate">{deck.name}</h3>
                         <p className="text-sm text-neutral-600 mt-1">
-                          {/* Note: card count would come from a join or separate query in real implementation */}
-                          Deck ID: {deck.id.substring(0, 8)}...
+                          {deck.card_count} card{deck.card_count !== 1 ? "s" : ""}
                         </p>
                       </div>
                       {state.selectedDeckId === deck.id && (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-6 w-6 text-blue-600"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
                           <path
                             fillRule="evenodd"
                             d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -274,7 +283,9 @@ export default function DeckSelectionModal({
               />
               <div className="flex items-center justify-between text-xs">
                 <span className="text-neutral-500">Create a new deck for your flashcards</span>
-                <span className={`font-mono ${state.newDeckName.length > MAX_DECK_NAME_LENGTH ? "text-red-600" : "text-neutral-600"}`}>
+                <span
+                  className={`font-mono ${state.newDeckName.length > MAX_DECK_NAME_LENGTH ? "text-red-600" : "text-neutral-600"}`}
+                >
                   {state.newDeckName.length}/{MAX_DECK_NAME_LENGTH}
                 </span>
               </div>
@@ -310,7 +321,12 @@ export default function DeckSelectionModal({
             >
               {isSaving ? (
                 <>
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <svg
+                    className="animate-spin h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path
                       className="opacity-75"

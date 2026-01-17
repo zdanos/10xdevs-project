@@ -14,22 +14,26 @@ export class DeckServiceError extends Error {
 }
 
 /**
- * Retrieves all decks for the authenticated user
+ * Retrieves all decks for the authenticated user with card counts
  * Decks are ordered by creation date (newest first)
  *
  * @param supabase - Authenticated Supabase client from context.locals
- * @returns Array of user's decks
+ * @returns Array of user's decks with card_count for each deck
  * @throws DeckServiceError if database query fails
  *
  * Used in: GET /api/decks
  *
  * @example
  * const decks = await listUserDecks(supabase);
- * // Returns: [{ id: "...", name: "History 101", ... }, ...]
+ * // Returns: [{ id: "...", name: "History 101", card_count: 25, ... }, ...]
  */
 export async function listUserDecks(supabase: SupabaseClient<Database>): Promise<ListDecksResponseDTO> {
   try {
-    const { data, error } = await supabase.from("decks").select("*").order("created_at", { ascending: false });
+    // Fetch decks with flashcard count using Supabase aggregation
+    const { data, error } = await supabase
+      .from("decks")
+      .select("*, flashcards(count)")
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("[DeckService] Database error during listUserDecks:", {
@@ -41,7 +45,17 @@ export async function listUserDecks(supabase: SupabaseClient<Database>): Promise
       throw new DeckServiceError("Failed to fetch decks");
     }
 
-    return data;
+    // Transform the response to include card_count as a number
+    // Supabase returns flashcards as [{ count: number }], we need to extract it
+    const decksWithCount = data.map((deck) => {
+      const { flashcards, ...deckData } = deck;
+      return {
+        ...deckData,
+        card_count: flashcards?.[0]?.count ?? 0,
+      };
+    });
+
+    return decksWithCount;
   } catch (error) {
     // Re-throw known error types
     if (error instanceof DeckServiceError) {
@@ -63,14 +77,14 @@ export async function listUserDecks(supabase: SupabaseClient<Database>): Promise
  *
  * @param supabase - Authenticated Supabase client from context.locals
  * @param command - Deck creation data (name)
- * @returns The created deck with auto-generated fields
+ * @returns The created deck with auto-generated fields and card_count (0 for new decks)
  * @throws DeckServiceError if database insertion fails
  *
  * Used in: POST /api/decks
  *
  * @example
  * const deck = await createDeck(supabase, { name: "History 101" });
- * // Returns: { id: "...", name: "History 101", user_id: "...", ... }
+ * // Returns: { id: "...", name: "History 101", user_id: "...", card_count: 0, ... }
  */
 export async function createDeck(supabase: SupabaseClient<Database>, command: CreateDeckCommand): Promise<DeckDTO> {
   try {
@@ -102,7 +116,11 @@ export async function createDeck(supabase: SupabaseClient<Database>, command: Cr
       throw new DeckServiceError("Failed to create deck: No data returned");
     }
 
-    return data;
+    // New deck has no cards yet
+    return {
+      ...data,
+      card_count: 0,
+    };
   } catch (error) {
     // Re-throw known error types
     if (error instanceof DeckServiceError) {
@@ -126,14 +144,14 @@ export async function createDeck(supabase: SupabaseClient<Database>, command: Cr
  * @param supabase - Authenticated Supabase client from context.locals
  * @param id - UUID of the deck to update
  * @param command - Update data (name)
- * @returns The updated deck
+ * @returns The updated deck with card_count
  * @throws DeckServiceError if deck not found, access denied, or database update fails
  *
  * Used in: PATCH /api/decks/[id]
  *
  * @example
  * const deck = await updateDeck(supabase, "deck-uuid", { name: "Advanced History" });
- * // Returns: { id: "deck-uuid", name: "Advanced History", ... }
+ * // Returns: { id: "deck-uuid", name: "Advanced History", card_count: 25, ... }
  */
 export async function updateDeck(
   supabase: SupabaseClient<Database>,
@@ -141,13 +159,14 @@ export async function updateDeck(
   command: UpdateDeckCommand
 ): Promise<DeckDTO> {
   try {
+    // Update the deck and fetch it with card count
     const { data, error } = await supabase
       .from("decks")
       .update({
         name: command.name,
       })
       .eq("id", id)
-      .select()
+      .select("*, flashcards(count)")
       .single();
 
     if (error) {
@@ -171,7 +190,12 @@ export async function updateDeck(
       throw new DeckServiceError("Deck not found or access denied");
     }
 
-    return data;
+    // Transform the response to include card_count as a number
+    const { flashcards, ...deckData } = data;
+    return {
+      ...deckData,
+      card_count: flashcards?.[0]?.count ?? 0,
+    };
   } catch (error) {
     // Re-throw known error types
     if (error instanceof DeckServiceError) {

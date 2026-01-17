@@ -69,10 +69,12 @@ export type ProfileDTO = Pick<ProfileEntity, "generations_count" | "last_generat
  * DeckDTO - Deck information for listing and management
  * Used in: GET /rest/v1/decks (Section 2.2 of API plan)
  *
- * Contains all fields from the deck entity as they are all relevant
+ * Contains all fields from the deck entity plus computed fields
  * for client-side display and management operations.
  */
-export type DeckDTO = DeckEntity;
+export type DeckDTO = DeckEntity & {
+  card_count: number; // Number of flashcards in this deck
+};
 
 /**
  * FlashcardDTO - Complete flashcard data for management and study views
