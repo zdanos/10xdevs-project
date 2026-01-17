@@ -286,3 +286,105 @@ export const SM2_GRADE_MAP = {
  * SM2Rating - Type alias for the rating keys in SM2_GRADE_MAP
  */
 export type SM2Rating = keyof typeof SM2_GRADE_MAP;
+
+// ============================================================================
+// ViewModels - Used for Generator View (AI Creation Flow)
+// ============================================================================
+
+/**
+ * CardStatus - Status of a flashcard in the staging area
+ * - pending: Initial state after generation
+ * - accepted: User clicked accept (green state)
+ * - edited: User modified front/back (blue state, also implies accepted)
+ * - rejected: User clicked reject (will be filtered out)
+ */
+export type CardStatus = "pending" | "accepted" | "rejected" | "edited";
+
+/**
+ * StagingFlashcard - Client-side representation of a flashcard in staging
+ * Used in: Generator view staging area
+ *
+ * Represents ephemeral flashcard data before final save to deck.
+ * Generated on the client with temporary UUID for tracking during edit/accept/reject flow.
+ */
+export interface StagingFlashcard {
+  id: string; // Temporary UUID (client-generated)
+  front: string; // Question text
+  back: string; // Answer text
+  status: CardStatus; // Current card state
+  isEdited: boolean; // Tracks if user modified content
+}
+
+/**
+ * GeneratorViewState - Complete state for Generator view
+ * Used in: useGeneratorState custom hook
+ *
+ * Manages the entire three-phase workflow:
+ * 1. Input phase: sourceText entry
+ * 2. Generation phase: API call with loading/error states
+ * 3. Staging phase: Card management with edit/accept/reject
+ * 4. Save phase: Deck selection and bulk save
+ */
+export interface GeneratorViewState {
+  // Input phase
+  sourceText: string; // User input (0-5000 chars)
+
+  // Quota tracking
+  quotaRemaining: number; // 0-10 generations left
+
+  // Generation phase
+  isGenerating: boolean; // API call in progress
+  generationError: string | null; // Error message from generation
+  generationId: string | null; // ID for metrics tracking
+
+  // Staging phase
+  stagingCards: StagingFlashcard[]; // Generated/edited cards
+  editingCardId: string | null; // ID of card being edited
+
+  // Save phase
+  isSaving: boolean; // Save API call in progress
+  saveError: string | null; // Error message from save
+  showDeckModal: boolean; // Show/hide deck selection
+  decks: DeckDTO[]; // Available decks for selection
+  isLoadingDecks: boolean; // Loading decks from API
+}
+
+/**
+ * QuotaInfo - Structured quota data for display
+ * Used in: QuotaIndicator component
+ *
+ * Provides formatted quota information including remaining count
+ * and time until reset.
+ */
+export interface QuotaInfo {
+  current: number; // Generations used today (0-10)
+  max: number; // Maximum allowed (always 10)
+  remaining: number; // Calculated: max - current
+  resetsIn: number; // Hours until reset (calculated from last_reset_date)
+}
+
+/**
+ * ValidationState - UI validation feedback
+ * Used in: SourceInput component
+ *
+ * Provides structured validation feedback for form inputs
+ * with appropriate messaging and visual states.
+ */
+export interface ValidationState {
+  isValid: boolean;
+  message: string;
+  type: "info" | "warning" | "error" | "success";
+}
+
+/**
+ * ApiError - Standardized error structure from API responses
+ * Used in: Error handling across all API calls
+ *
+ * Consistent error format returned by backend endpoints.
+ */
+export interface ApiError {
+  error: string; // Error type (e.g., "Validation Error")
+  message: string; // User-friendly message
+  details?: Record<string, string[]>; // Additional error details
+  retry_after?: number; // Seconds until retry (for 403)
+}

@@ -1,0 +1,26 @@
+---
+/**
+ * Generate Flashcards Page
+ *
+ * Route: /app/generate
+ *
+ * This page implements the AI Generator view - the core feature of FlashCard AI MVP.
+ * Users can paste notes, generate flashcards using AI, verify/edit them, and save to a deck.
+ *
+ * Implements a three-phase workflow:
+ * 1. Input Phase: Paste notes (500-5000 chars)
+ * 2. Processing Phase: AI generation with GPT-4o-mini
+ * 3. Staging Phase: Verify, edit, accept/reject cards before saving
+ *
+ * The component is rendered as a React Island using client:load for complex state management.
+ */
+
+import Layout from "@/layouts/Layout.astro";
+import GeneratorPage from "@/components/generator/GeneratorPage";
+
+export const prerender = false;
+---
+
+<Layout title="Generate Flashcards">
+  <GeneratorPage client:load />
+</Layout>
