@@ -57,8 +57,21 @@ The following endpoints use standard Supabase prefixes:
 #### **List Decks**
 * **Method:** `GET`
 * **URL:** `/rest/v1/decks?select=*&order=created_at.desc`
-* **Description:** Fetches the list of decks for the logged-in user.
-* **Response:** Array of Deck objects.
+* **Description:** Fetches the list of decks for the logged-in user, including the count of flashcards in each deck.
+* **Response Payload (Success 200):**
+    ```json
+    [
+      {
+        "id": "deck-uuid",
+        "user_id": "user-uuid",
+        "name": "History 101",
+        "card_count": 25,
+        "created_at": "2026-01-15T10:00:00Z",
+        "updated_at": "2026-01-15T10:00:00Z"
+      }
+    ]
+    ```
+* **Implementation Note:** Uses Supabase aggregation (`select="*, flashcards(count)"`) to efficiently fetch card counts in a single query.
 
 #### **Create Deck**
 * **Method:** `POST`
@@ -68,7 +81,18 @@ The following endpoints use standard Supabase prefixes:
     ```json
     { "name": "History 101" }
     ```
-* **Success:** `201 Created`.
+* **Response Payload (Success 201):**
+    ```json
+    {
+      "id": "deck-uuid",
+      "user_id": "user-uuid",
+      "name": "History 101",
+      "card_count": 0,
+      "created_at": "2026-01-15T10:00:00Z",
+      "updated_at": "2026-01-15T10:00:00Z"
+    }
+    ```
+* **Implementation Note:** New decks have `card_count: 0` by default.
 
 #### **Update Deck Name**
 * **Method:** `PATCH`
@@ -78,7 +102,18 @@ The following endpoints use standard Supabase prefixes:
     ```json
     { "name": "Advanced History" }
     ```
-* **Success:** `204 No Content` (or `200 OK` with returned representation).
+* **Response Payload (Success 200):**
+    ```json
+    {
+      "id": "deck-uuid",
+      "user_id": "user-uuid",
+      "name": "Advanced History",
+      "card_count": 25,
+      "created_at": "2026-01-15T10:00:00Z",
+      "updated_at": "2026-01-15T12:00:00Z"
+    }
+    ```
+* **Implementation Note:** Returns the updated deck with current `card_count`.
 
 #### **Delete Deck**
 * **Method:** `DELETE`
