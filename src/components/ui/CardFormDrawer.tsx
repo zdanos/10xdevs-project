@@ -193,9 +193,7 @@ export default function CardFormDrawer({
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
             {/* Error message */}
             {saveError && (
-              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
-                {saveError}
-              </div>
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">{saveError}</div>
             )}
 
             {/* Front Input */}

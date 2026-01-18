@@ -88,11 +88,7 @@ export async function listUserDecks(supabase: SupabaseClient<Database>): Promise
  */
 export async function getDeck(supabase: SupabaseClient<Database>, id: string): Promise<DeckDTO> {
   try {
-    const { data, error } = await supabase
-      .from("decks")
-      .select("*, flashcards(count)")
-      .eq("id", id)
-      .single();
+    const { data, error } = await supabase.from("decks").select("*, flashcards(count)").eq("id", id).single();
 
     if (error) {
       console.error("[DeckService] Database error during getDeck:", {

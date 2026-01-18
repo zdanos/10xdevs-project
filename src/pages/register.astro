@@ -1,0 +1,24 @@
+---
+/**
+ * Register page - Entry point for new users
+ * Server-rendered page with client-side React form
+ */
+
+import AuthLayout from "@/layouts/AuthLayout.astro";
+import RegisterForm from "@/components/auth/RegisterForm";
+
+// TODO: Add middleware to check if user is already authenticated
+// If authenticated, redirect to /app/decks
+---
+
+<AuthLayout title="Create Account" description="Create your FlashCard AI account">
+  <RegisterForm
+    client:only="react"
+    onSubmit={async (data) => {
+      console.log("Register form submitted:", data);
+      // TODO: Implement Astro Action call for registration
+      // Example: await actions.auth.register(data)
+      alert("Registration functionality will be implemented in the next step");
+    }}
+  />
+</AuthLayout>

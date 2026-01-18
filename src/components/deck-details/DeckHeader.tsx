@@ -190,9 +190,7 @@ export function DeckHeader({ deck, isRenaming, isDeletingDeck, onRename, onDelet
             />
             {/* Character counter */}
             <div className="mt-1 flex items-center justify-between">
-              <div>
-                {validationError && <p className="text-sm text-red-600">{validationError}</p>}
-              </div>
+              <div>{validationError && <p className="text-sm text-red-600">{validationError}</p>}</div>
               <p className={`text-sm ${newName.length > 100 ? "text-red-600" : "text-gray-500"}`}>
                 {newName.length}/100
               </p>

@@ -52,14 +52,11 @@ try {
     initialDeck = await deckResponse.json();
 
     // Fetch flashcards for this deck
-    const flashcardsResponse = await fetch(
-      `${Astro.url.origin}/api/flashcards?deck_id=${id}`,
-      {
-        headers: {
-          cookie: Astro.request.headers.get("cookie") || "",
-        },
-      }
-    );
+    const flashcardsResponse = await fetch(`${Astro.url.origin}/api/flashcards?deck_id=${id}`, {
+      headers: {
+        cookie: Astro.request.headers.get("cookie") || "",
+      },
+    });
 
     if (!flashcardsResponse.ok) {
       const errorData = await flashcardsResponse.json();
