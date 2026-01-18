@@ -2,7 +2,6 @@ import type { APIContext } from "astro";
 import { GenerateFlashcardsRequestSchema } from "@/lib/validators/generate-flashcards.validator";
 import { generateFlashcards, OpenAIServiceError } from "@/lib/services/openai.service";
 import { checkQuota, recordGeneration, QuotaExceededError, QuotaServiceError } from "@/lib/services/quota.service";
-import { DEFAULT_USER_ID } from "@/db/supabase.client";
 import type { GenerateFlashcardsResponseDTO } from "@/types";
 
 /**
@@ -19,15 +18,15 @@ export const prerender = false;
  * They are returned to the client for user review and verification before saving.
  *
  * **Business Logic Flow:**
- * 1. Validate request body (text: 1-5000 characters)
- * 2. Check user's daily quota (10 generations per 24h) - no side effects
- * 3. Generate flashcards using OpenAI Responses API
- * 4. Record successful generation and consume quota with actual flashcard count
- * 5. Return flashcards with generation_id for metrics tracking and remaining quota
+ * 1. Authenticate user from Supabase session
+ * 2. Validate request body (text: 1-5000 characters)
+ * 3. Check user's daily quota (10 generations per 24h) - no side effects
+ * 4. Generate flashcards using OpenAI Responses API
+ * 5. Record successful generation and consume quota with actual flashcard count
+ * 6. Return flashcards with generation_id for metrics tracking and remaining quota
  *
  * **Authentication:**
- * Currently uses DEFAULT_USER_ID for testing purposes.
- * TODO: Implement JWT token authentication in production
+ * Uses Supabase Auth session from authenticated client
  *
  * @param context - Astro API context containing request and locals
  * @returns Response with flashcards, generation_id, and quota information or error
@@ -52,15 +51,22 @@ export async function POST(context: APIContext): Promise<Response> {
     // ==========================================
     // STEP 1: AUTHENTICATION
     // ==========================================
-    // TODO: Replace with JWT authentication in production
-    // For now, use hardcoded DEFAULT_USER_ID for local testing
-    const userId = DEFAULT_USER_ID;
+    // Get authenticated user from Supabase client
+    const {
+      data: { user },
+      error: authError,
+    } = await context.locals.supabase.auth.getUser();
 
-    if (!userId) {
+    if (authError || !user) {
+      console.error("[API /api/generate-flashcards POST] User not authenticated:", {
+        authError: authError?.message,
+        timestamp: new Date().toISOString(),
+      });
+
       return new Response(
         JSON.stringify({
           error: "Unauthorized",
-          message: "Authentication required. Please provide a valid access token.",
+          message: "Authentication required. Please log in.",
         }),
         {
           status: 401,
@@ -68,6 +74,8 @@ export async function POST(context: APIContext): Promise<Response> {
         }
       );
     }
+
+    const userId = user.id;
 
     // ==========================================
     // STEP 2: REQUEST VALIDATION

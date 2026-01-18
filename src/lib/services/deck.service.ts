@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../../db/database.types";
 import type { DeckDTO, CreateDeckCommand, UpdateDeckCommand, ListDecksResponseDTO } from "../../types";
-import { DEFAULT_USER_ID } from "../../db/supabase.client";
 
 /**
  * Custom error class for deck service errors
@@ -133,12 +132,12 @@ export async function getDeck(supabase: SupabaseClient<Database>, id: string): P
 
 /**
  * Creates a new deck for the authenticated user
- * For testing purposes, uses DEFAULT_USER_ID until authentication is implemented
+ * The user_id is automatically extracted from the authenticated Supabase client
  *
  * @param supabase - Authenticated Supabase client from context.locals
  * @param command - Deck creation data (name)
  * @returns The created deck with auto-generated fields and card_count (0 for new decks)
- * @throws DeckServiceError if database insertion fails
+ * @throws DeckServiceError if database insertion fails or user is not authenticated
  *
  * Used in: POST /api/decks
  *
@@ -148,11 +147,25 @@ export async function getDeck(supabase: SupabaseClient<Database>, id: string): P
  */
 export async function createDeck(supabase: SupabaseClient<Database>, command: CreateDeckCommand): Promise<DeckDTO> {
   try {
+    // Get authenticated user from Supabase client
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      console.error("[DeckService] User not authenticated:", {
+        authError: authError?.message,
+        timestamp: new Date().toISOString(),
+      });
+      throw new DeckServiceError("User not authenticated");
+    }
+
     const { data, error } = await supabase
       .from("decks")
       .insert({
         name: command.name,
-        user_id: DEFAULT_USER_ID,
+        user_id: user.id,
       })
       .select()
       .single();

@@ -8,8 +8,7 @@ export const prerender = false;
  * Retrieves the authenticated user's profile information and quota statistics
  *
  * Authentication is handled within the service layer, which extracts the user ID
- * from the Supabase auth session. For testing purposes, falls back to DEFAULT_USER_ID
- * when authentication is not yet fully implemented.
+ * from the Supabase auth session.
  *
  * Returns quota data needed for client-side quota management:
  * - generations_count: Number of AI generations used in current 24h cycle (0-10)
@@ -17,6 +16,7 @@ export const prerender = false;
  * - last_reset_date: ISO 8601 timestamp of last quota reset
  *
  * @returns 200 with ProfileDTO on success
+ * @returns 401 if user is not authenticated
  * @returns 404 if user profile not found
  * @returns 500 for server errors
  */

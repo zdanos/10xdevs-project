@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../../db/database.types";
 import type { ProfileDTO } from "../../types";
-import { DEFAULT_USER_ID } from "../../db/supabase.client";
 
 /**
  * Custom error class for profile service errors
@@ -29,9 +28,8 @@ export class ProfileNotFoundError extends Error {
  *
  * Authentication:
  * - Extracts user ID from Supabase auth session
- * - Falls back to DEFAULT_USER_ID for testing when auth is not yet implemented
  *
- * @param supabase - Supabase client (authenticated or global for testing)
+ * @param supabase - Authenticated Supabase client from context.locals
  * @returns Profile data with quota statistics
  * @throws ProfileNotFoundError if user profile doesn't exist
  * @throws ProfileServiceError if database query fails or user not authenticated
@@ -49,24 +47,20 @@ export class ProfileNotFoundError extends Error {
 export async function getUserProfile(supabase: SupabaseClient<Database>): Promise<ProfileDTO> {
   try {
     // Get authenticated user from Supabase auth
-    // TODO: Remove DEFAULT_USER_ID fallback after authentication is fully implemented
-    let userId: string;
-
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      // For testing purposes, fall back to DEFAULT_USER_ID
-      console.warn("[ProfileService] No authenticated user, using DEFAULT_USER_ID for testing:", {
+      console.error("[ProfileService] User not authenticated:", {
         authError: authError?.message,
         timestamp: new Date().toISOString(),
       });
-      userId = DEFAULT_USER_ID;
-    } else {
-      userId = user.id;
+      throw new ProfileServiceError("User not authenticated");
     }
+
+    const userId = user.id;
 
     // Query profiles table for specific fields only
     const { data, error } = await supabase

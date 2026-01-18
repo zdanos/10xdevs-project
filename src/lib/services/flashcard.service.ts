@@ -6,7 +6,6 @@ import type {
   UpdateFlashcardCommand,
   ListFlashcardsResponseDTO,
 } from "../../types";
-import { DEFAULT_USER_ID } from "../../db/supabase.client";
 
 /**
  * Custom error class for flashcard service errors
@@ -75,12 +74,12 @@ export async function listDeckFlashcards(
 /**
  * Creates one or multiple flashcards in a deck
  * Supports both single flashcard creation and bulk insert (up to 50 cards)
- * For testing purposes, uses DEFAULT_USER_ID until authentication is implemented
+ * The user_id is automatically extracted from the authenticated Supabase client
  *
  * @param supabase - Authenticated Supabase client from context.locals
  * @param commands - Single flashcard or array of flashcards to create
  * @returns Created flashcard(s) - single object if input was single, array if bulk
- * @throws FlashcardServiceError if database insertion fails or deck not found
+ * @throws FlashcardServiceError if database insertion fails, deck not found, or user not authenticated
  *
  * Used in: POST /api/flashcards
  *
@@ -108,11 +107,24 @@ export async function createFlashcards(
   const commandsArray = Array.isArray(commands) ? commands : [commands];
 
   try {
-    // Add user_id to each command (using DEFAULT_USER_ID for testing)
-    // TODO: After auth implementation, user_id will be automatically set by RLS
+    // Get authenticated user from Supabase client
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      console.error("[FlashcardService] User not authenticated:", {
+        authError: authError?.message,
+        timestamp: new Date().toISOString(),
+      });
+      throw new FlashcardServiceError("User not authenticated");
+    }
+
+    // Add user_id to each command
     const commandsWithUserId = commandsArray.map((cmd) => ({
       ...cmd,
-      user_id: DEFAULT_USER_ID,
+      user_id: user.id,
     }));
 
     const { data, error } = await supabase.from("flashcards").insert(commandsWithUserId).select();
