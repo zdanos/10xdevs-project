@@ -2,10 +2,10 @@
  * EmptyState - Empty state component for deck with no flashcards
  *
  * Displays a friendly message encouraging users to create their first flashcard.
- * Includes a CTA button to open the card form.
+ * Includes CTA buttons for manual creation and AI generation.
  */
 
-import { FileText } from "lucide-react";
+import { FileText, Sparkles, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
@@ -21,9 +21,21 @@ export function EmptyState({ onCreate }: EmptyStateProps) {
         </div>
         <h3 className="mt-4 text-lg font-semibold text-gray-900">No flashcards yet</h3>
         <p className="mt-2 text-sm text-gray-600">Add your first flashcard to start learning</p>
-        <Button onClick={onCreate} className="mt-6 bg-green-600 hover:bg-green-700">
-          Create Flashcard
-        </Button>
+        
+        {/* Action buttons */}
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <Button
+            onClick={() => (window.location.href = "/app/generate")}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Generate with AI</span>
+          </Button>
+          <Button onClick={onCreate} variant="outline" className="flex items-center gap-2 border-gray-300">
+            <Plus className="h-4 w-4" />
+            <span>Create Manually</span>
+          </Button>
+        </div>
       </div>
     </div>
   );

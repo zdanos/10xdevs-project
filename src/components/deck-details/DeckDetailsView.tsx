@@ -12,13 +12,12 @@
  * - Modal/drawer state management
  */
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DeckDTO, FlashcardDTO, ApiError } from "@/types";
 import { useDeckDetails } from "./hooks/useDeckDetails";
 import { DeckHeader } from "./DeckHeader";
 import { FlashcardList } from "./FlashcardList";
-import { AddCardButton } from "./AddCardButton";
 import { DeleteConfirmationDialog } from "./DeleteConfirmationDialog";
 import CardFormDrawer from "@/components/ui/CardFormDrawer";
 
@@ -105,13 +104,34 @@ export function DeckDetailsView({ initialDeck, initialFlashcards, initialError }
         )}
       </div>
 
-      {/* Add Card Button (desktop inline, mobile FAB) */}
-      <div className="flex justify-center md:justify-end">
-        <AddCardButton
-          onClick={() => actions.openCardForm("create")}
-          disabled={state.isSavingCard || state.isDeletingCard}
-        />
+      {/* Add Card Buttons - sticky on mobile, inline on desktop */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white p-4 shadow-lg sm:relative sm:inset-auto sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:justify-end">
+          {/* Generate with AI button - primary action */}
+          <Button
+            onClick={() => (window.location.href = "/app/generate")}
+            className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-300"
+            disabled={state.isSavingCard || state.isDeletingCard}
+          >
+            <Sparkles className="h-4 w-4" />
+            <span>Generate with AI</span>
+          </Button>
+
+          {/* Manual creation button - secondary action */}
+          <Button
+            onClick={() => actions.openCardForm("create")}
+            variant="outline"
+            className="flex items-center justify-center gap-2 border-gray-300"
+            disabled={state.isSavingCard || state.isDeletingCard}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Manually</span>
+          </Button>
+        </div>
       </div>
+
+      {/* Spacer for fixed bottom bar on mobile */}
+      <div className="h-32 sm:hidden" aria-hidden="true" />
 
       {/* Card Form Drawer */}
       <CardFormDrawer
