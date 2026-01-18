@@ -1,6 +1,5 @@
 import type { APIRoute } from "astro";
 import { getUserProfile, ProfileNotFoundError } from "@/lib/services/profile.service";
-import { supabaseClient } from "@/db/supabase.client";
 
 export const prerender = false;
 
@@ -21,12 +20,10 @@ export const prerender = false;
  * @returns 404 if user profile not found
  * @returns 500 for server errors
  */
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
   try {
-    // For now, use the global supabase client
-    // TODO: Replace with authenticated client from locals.supabase after auth implementation
-    // The service will handle extracting the user ID from auth or falling back to DEFAULT_USER_ID
-    const profile = await getUserProfile(supabaseClient);
+    // Use authenticated Supabase client from middleware
+    const profile = await getUserProfile(locals.supabase);
 
     return new Response(JSON.stringify(profile), {
       status: 200,

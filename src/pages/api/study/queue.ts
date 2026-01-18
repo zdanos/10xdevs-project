@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
 import { fetchStudyQueueSchema } from "@/lib/validators/study.validator";
 import { fetchStudyQueue, StudyServiceError } from "@/lib/services/study.service";
-import { supabaseClient } from "@/db/supabase.client";
 
 export const prerender = false;
 
@@ -43,9 +42,8 @@ export const GET: APIRoute = async ({ url }) => {
       );
     }
 
-    // For now, use the global supabase client
-    // TODO: Replace with authenticated client from locals.supabase after auth implementation
-    const flashcards = await fetchStudyQueue(supabaseClient, validationResult.data);
+    // Use authenticated Supabase client from middleware
+    const flashcards = await fetchStudyQueue(locals.supabase, validationResult.data);
 
     return new Response(JSON.stringify(flashcards), {
       status: 200,

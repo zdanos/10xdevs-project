@@ -1,6 +1,7 @@
 /**
  * RegisterForm - Client-side registration form component
  * Handles email/password/confirmPassword input with validation and error display
+ * Integrates with auth API for server-side registration
  */
 
 import { useState, useCallback, useId } from "react";
@@ -8,15 +9,15 @@ import { registerSchema, type RegisterInput } from "@/lib/validators/auth.valida
 import { Button } from "@/components/ui/button";
 
 interface RegisterFormProps {
-  onSubmit: (data: RegisterInput) => Promise<void>;
-  isSubmitting?: boolean;
-  error?: string | null;
+  // No props needed - form is self-contained
 }
 
 interface FormState {
   email: string;
   password: string;
   confirmPassword: string;
+  isSubmitting: boolean;
+  globalError: string | null;
   fieldErrors: {
     email?: string;
     password?: string;
@@ -24,11 +25,13 @@ interface FormState {
   };
 }
 
-export default function RegisterForm({ onSubmit, isSubmitting = false, error = null }: RegisterFormProps) {
+export default function RegisterForm({}: RegisterFormProps) {
   const [formState, setFormState] = useState<FormState>({
     email: "",
     password: "",
     confirmPassword: "",
+    isSubmitting: false,
+    globalError: null,
     fieldErrors: {},
   });
 
@@ -65,13 +68,60 @@ export default function RegisterForm({ onSubmit, isSubmitting = false, error = n
         return;
       }
 
-      await onSubmit({
-        email: formState.email.trim(),
-        password: formState.password,
-        confirmPassword: formState.confirmPassword,
-      });
+      // Set loading state
+      setFormState((prev) => ({
+        ...prev,
+        isSubmitting: true,
+        globalError: null,
+      }));
+
+      try {
+        // Call auth API for registration
+        const response = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formState.email.trim(),
+            password: formState.password,
+            confirmPassword: formState.confirmPassword,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          // Handle auth error
+          setFormState((prev) => ({
+            ...prev,
+            isSubmitting: false,
+            globalError: data.error || "Failed to create account. Please try again.",
+          }));
+          return;
+        }
+
+        if (data.redirectTo) {
+          // Redirect to the specified URL (generator page per PRD)
+          window.location.href = data.redirectTo;
+        } else {
+          setFormState((prev) => ({
+            ...prev,
+            isSubmitting: false,
+            globalError: "Registration failed. Please try again.",
+          }));
+        }
+      } catch (err) {
+        // Handle unexpected errors
+        setFormState((prev) => ({
+          ...prev,
+          isSubmitting: false,
+          globalError: "An unexpected error occurred. Please try again.",
+        }));
+        console.error("Registration error:", err);
+      }
     },
-    [validateForm, onSubmit, formState.email, formState.password, formState.confirmPassword]
+    [validateForm, formState.email, formState.password, formState.confirmPassword]
   );
 
   const updateField = useCallback(
@@ -101,7 +151,7 @@ export default function RegisterForm({ onSubmit, isSubmitting = false, error = n
         </div>
 
         {/* Global Error */}
-        {error && (
+        {formState.globalError && (
           <div
             className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-800"
             role="alert"
@@ -115,7 +165,7 @@ export default function RegisterForm({ onSubmit, isSubmitting = false, error = n
                   clipRule="evenodd"
                 />
               </svg>
-              <span>{error}</span>
+              <span>{formState.globalError}</span>
             </div>
           </div>
         )}
@@ -133,7 +183,7 @@ export default function RegisterForm({ onSubmit, isSubmitting = false, error = n
               value={formState.email}
               onChange={(e) => updateField("email", e.target.value)}
               placeholder="you@example.com"
-              disabled={isSubmitting}
+              disabled={formState.isSubmitting}
               aria-invalid={!!formState.fieldErrors.email}
               aria-describedby={formState.fieldErrors.email ? `${emailId}-error` : undefined}
               className={`w-full max-w-full h-11 px-4 rounded-lg border-2 box-border ${
@@ -158,7 +208,7 @@ export default function RegisterForm({ onSubmit, isSubmitting = false, error = n
               value={formState.password}
               onChange={(e) => updateField("password", e.target.value)}
               placeholder="At least 8 characters"
-              disabled={isSubmitting}
+              disabled={formState.isSubmitting}
               aria-invalid={!!formState.fieldErrors.password}
               aria-describedby={formState.fieldErrors.password ? `${passwordId}-error` : undefined}
               className={`w-full max-w-full h-11 px-4 rounded-lg border-2 box-border ${
@@ -183,7 +233,7 @@ export default function RegisterForm({ onSubmit, isSubmitting = false, error = n
               value={formState.confirmPassword}
               onChange={(e) => updateField("confirmPassword", e.target.value)}
               placeholder="Re-enter your password"
-              disabled={isSubmitting}
+              disabled={formState.isSubmitting}
               aria-invalid={!!formState.fieldErrors.confirmPassword}
               aria-describedby={formState.fieldErrors.confirmPassword ? `${confirmPasswordId}-error` : undefined}
               className={`w-full max-w-full h-11 px-4 rounded-lg border-2 box-border ${
@@ -200,11 +250,11 @@ export default function RegisterForm({ onSubmit, isSubmitting = false, error = n
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={!isFormValid || isSubmitting}
+            disabled={!isFormValid || formState.isSubmitting}
             className="w-full h-11 text-base font-semibold bg-green-600 hover:bg-green-700 focus-visible:ring-green-500 border-0 shadow-none"
             size="lg"
           >
-            {isSubmitting ? "Creating account..." : "Create account"}
+            {formState.isSubmitting ? "Creating account..." : "Create account"}
           </Button>
         </form>
 

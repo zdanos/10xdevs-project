@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
 import { flashcardIdSchema, updateFlashcardSchema } from "@/lib/validators/flashcard.validator";
 import { updateFlashcard, deleteFlashcard, FlashcardServiceError } from "@/lib/services/flashcard.service";
-import { supabaseClient } from "@/db/supabase.client";
 
 export const prerender = false;
 
@@ -14,7 +13,7 @@ export const prerender = false;
  * @returns 404 if flashcard not found or access denied
  * @returns 500 for server errors
  */
-export const PATCH: APIRoute = async ({ params, request }) => {
+export const PATCH: APIRoute = async ({ params, request, locals }) => {
   try {
     // Extract and validate flashcard ID from URL parameters
     const idValidation = flashcardIdSchema.safeParse(params.id);
@@ -84,9 +83,8 @@ export const PATCH: APIRoute = async ({ params, request }) => {
       );
     }
 
-    // For now, use the global supabase client
-    // TODO: Replace with authenticated client from locals.supabase after auth implementation
-    const flashcard = await updateFlashcard(supabaseClient, flashcardId, validationResult.data);
+    // Use authenticated Supabase client from middleware
+    const flashcard = await updateFlashcard(locals.supabase, flashcardId, validationResult.data);
 
     return new Response(JSON.stringify(flashcard), {
       status: 200,
@@ -141,7 +139,7 @@ export const PATCH: APIRoute = async ({ params, request }) => {
  * @returns 404 if flashcard not found or access denied
  * @returns 500 for server errors
  */
-export const DELETE: APIRoute = async ({ params }) => {
+export const DELETE: APIRoute = async ({ params, locals }) => {
   try {
     // Extract and validate flashcard ID from URL parameters
     const idValidation = flashcardIdSchema.safeParse(params.id);
@@ -169,9 +167,8 @@ export const DELETE: APIRoute = async ({ params }) => {
 
     const flashcardId = idValidation.data;
 
-    // For now, use the global supabase client
-    // TODO: Replace with authenticated client from locals.supabase after auth implementation
-    await deleteFlashcard(supabaseClient, flashcardId);
+    // Use authenticated Supabase client from middleware
+    await deleteFlashcard(locals.supabase, flashcardId);
 
     // Return 204 No Content on successful deletion
     return new Response(null, {

@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
 import { processReviewSchema } from "@/lib/validators/study.validator";
 import { processReview, StudyServiceError } from "@/lib/services/study.service";
-import { supabaseClient } from "@/db/supabase.client";
 
 export const prerender = false;
 
@@ -18,7 +17,7 @@ export const prerender = false;
  * @returns 404 if flashcard not found or access denied
  * @returns 500 for server errors
  */
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
   try {
     // Parse request body
     let body;
@@ -61,9 +60,8 @@ export const POST: APIRoute = async ({ request }) => {
     let result;
 
     try {
-      // For now, use the global supabase client
-      // TODO: Replace with authenticated client from locals.supabase after auth implementation
-      result = await processReview(supabaseClient, validationResult.data);
+      // Use authenticated Supabase client from middleware
+      result = await processReview(locals.supabase, validationResult.data);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
 

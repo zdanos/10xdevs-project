@@ -2,23 +2,13 @@
 /**
  * Login page - Entry point for existing users
  * Server-rendered page with client-side React form
+ * Auth check and redirect handled by middleware
  */
 
 import AuthLayout from "@/layouts/AuthLayout.astro";
 import LoginForm from "@/components/auth/LoginForm";
-
-// TODO: Add middleware to check if user is already authenticated
-// If authenticated, redirect to /app/decks
 ---
 
 <AuthLayout title="Sign In" description="Sign in to your FlashCard AI account">
-  <LoginForm
-    client:only="react"
-    onSubmit={async (data) => {
-      console.log("Login form submitted:", data);
-      // TODO: Implement Astro Action call for authentication
-      // Example: await actions.auth.login(data)
-      alert("Login functionality will be implemented in the next step");
-    }}
-  />
+  <LoginForm client:only="react" />
 </AuthLayout>

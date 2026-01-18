@@ -1,6 +1,7 @@
 /**
  * LoginForm - Client-side login form component
  * Handles email/password input with validation and error display
+ * Integrates with auth API for server-side authentication
  */
 
 import { useState, useCallback, useId } from "react";
@@ -8,24 +9,26 @@ import { loginSchema, type LoginInput } from "@/lib/validators/auth.validator";
 import { Button } from "@/components/ui/button";
 
 interface LoginFormProps {
-  onSubmit: (data: LoginInput) => Promise<void>;
-  isSubmitting?: boolean;
-  error?: string | null;
+  // No props needed - form is self-contained
 }
 
 interface FormState {
   email: string;
   password: string;
+  isSubmitting: boolean;
+  globalError: string | null;
   fieldErrors: {
     email?: string;
     password?: string;
   };
 }
 
-export default function LoginForm({ onSubmit, isSubmitting = false, error = null }: LoginFormProps) {
+export default function LoginForm({}: LoginFormProps) {
   const [formState, setFormState] = useState<FormState>({
     email: "",
     password: "",
+    isSubmitting: false,
+    globalError: null,
     fieldErrors: {},
   });
 
@@ -60,12 +63,59 @@ export default function LoginForm({ onSubmit, isSubmitting = false, error = null
         return;
       }
 
-      await onSubmit({
-        email: formState.email.trim(),
-        password: formState.password,
-      });
+      // Set loading state
+      setFormState((prev) => ({
+        ...prev,
+        isSubmitting: true,
+        globalError: null,
+      }));
+
+      try {
+        // Call auth API for login
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formState.email.trim(),
+            password: formState.password,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          // Handle auth error
+          setFormState((prev) => ({
+            ...prev,
+            isSubmitting: false,
+            globalError: data.error || "Failed to sign in. Please try again.",
+          }));
+          return;
+        }
+
+        if (data.redirectTo) {
+          // Redirect to the specified URL
+          window.location.href = data.redirectTo;
+        } else {
+          setFormState((prev) => ({
+            ...prev,
+            isSubmitting: false,
+            globalError: "Authentication failed. Please try again.",
+          }));
+        }
+      } catch (err) {
+        // Handle unexpected errors
+        setFormState((prev) => ({
+          ...prev,
+          isSubmitting: false,
+          globalError: "An unexpected error occurred. Please try again.",
+        }));
+        console.error("Login error:", err);
+      }
     },
-    [validateForm, onSubmit, formState.email, formState.password]
+    [validateForm, formState.email, formState.password]
   );
 
   const updateField = useCallback((field: keyof Pick<FormState, "email" | "password">, value: string) => {
@@ -91,7 +141,7 @@ export default function LoginForm({ onSubmit, isSubmitting = false, error = null
         </div>
 
         {/* Global Error */}
-        {error && (
+        {formState.globalError && (
           <div
             className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-800"
             role="alert"
@@ -105,7 +155,7 @@ export default function LoginForm({ onSubmit, isSubmitting = false, error = null
                   clipRule="evenodd"
                 />
               </svg>
-              <span>{error}</span>
+              <span>{formState.globalError}</span>
             </div>
           </div>
         )}
@@ -123,7 +173,7 @@ export default function LoginForm({ onSubmit, isSubmitting = false, error = null
               value={formState.email}
               onChange={(e) => updateField("email", e.target.value)}
               placeholder="you@example.com"
-              disabled={isSubmitting}
+              disabled={formState.isSubmitting}
               aria-invalid={!!formState.fieldErrors.email}
               aria-describedby={formState.fieldErrors.email ? `${emailId}-error` : undefined}
               className={`w-full max-w-full h-11 px-4 rounded-lg border-2 box-border ${
@@ -148,7 +198,7 @@ export default function LoginForm({ onSubmit, isSubmitting = false, error = null
               value={formState.password}
               onChange={(e) => updateField("password", e.target.value)}
               placeholder="Enter your password"
-              disabled={isSubmitting}
+              disabled={formState.isSubmitting}
               aria-invalid={!!formState.fieldErrors.password}
               aria-describedby={formState.fieldErrors.password ? `${passwordId}-error` : undefined}
               className={`w-full max-w-full h-11 px-4 rounded-lg border-2 box-border ${
@@ -165,11 +215,11 @@ export default function LoginForm({ onSubmit, isSubmitting = false, error = null
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={!isFormValid || isSubmitting}
+            disabled={!isFormValid || formState.isSubmitting}
             className="w-full h-11 text-base font-semibold bg-green-600 hover:bg-green-700 focus-visible:ring-green-500 border-0 shadow-none"
             size="lg"
           >
-            {isSubmitting ? "Signing in..." : "Sign in"}
+            {formState.isSubmitting ? "Signing in..." : "Sign in"}
           </Button>
         </form>
 

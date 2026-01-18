@@ -5,7 +5,6 @@ import {
   bulkCreateFlashcardsSchema,
 } from "@/lib/validators/flashcard.validator";
 import { listDeckFlashcards, createFlashcards, FlashcardServiceError } from "@/lib/services/flashcard.service";
-import { supabaseClient } from "@/db/supabase.client";
 
 export const prerender = false;
 
@@ -17,7 +16,7 @@ export const prerender = false;
  * @returns 400 for validation errors
  * @returns 500 for server errors
  */
-export const GET: APIRoute = async ({ url }) => {
+export const GET: APIRoute = async ({ url, locals }) => {
   try {
     // Extract deck_id from query parameters
     const deckId = url.searchParams.get("deck_id");
@@ -66,9 +65,8 @@ export const GET: APIRoute = async ({ url }) => {
       );
     }
 
-    // For now, use the global supabase client
-    // TODO: Replace with authenticated client from locals.supabase after auth implementation
-    const flashcards = await listDeckFlashcards(supabaseClient, validationResult.data);
+    // Use authenticated Supabase client from middleware
+    const flashcards = await listDeckFlashcards(locals.supabase, validationResult.data);
 
     return new Response(JSON.stringify(flashcards), {
       status: 200,
@@ -107,7 +105,7 @@ export const GET: APIRoute = async ({ url }) => {
  * @returns 404 for deck not found
  * @returns 500 for server errors
  */
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
   try {
     // Parse request body
     let body;
@@ -156,9 +154,8 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    // For now, use the global supabase client
-    // TODO: Replace with authenticated client from locals.supabase after auth implementation
-    const flashcards = await createFlashcards(supabaseClient, validationResult.data);
+    // Use authenticated Supabase client from middleware
+    const flashcards = await createFlashcards(locals.supabase, validationResult.data);
 
     return new Response(JSON.stringify(flashcards), {
       status: 201,

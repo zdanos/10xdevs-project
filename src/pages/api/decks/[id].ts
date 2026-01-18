@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
 import { deckIdSchema, updateDeckSchema } from "@/lib/validators/deck.validator";
 import { getDeck, updateDeck, deleteDeck, DeckServiceError } from "@/lib/services/deck.service";
-import { supabaseClient } from "@/db/supabase.client";
 
 export const prerender = false;
 
@@ -14,7 +13,7 @@ export const prerender = false;
  * @returns 404 if deck not found or access denied
  * @returns 500 for server errors
  */
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async ({ params, locals }) => {
   try {
     // Extract and validate deck ID from URL parameters
     const idValidation = deckIdSchema.safeParse(params.id);
@@ -42,9 +41,8 @@ export const GET: APIRoute = async ({ params }) => {
 
     const deckId = idValidation.data;
 
-    // For now, use the global supabase client
-    // TODO: Replace with authenticated client from locals.supabase after auth implementation
-    const deck = await getDeck(supabaseClient, deckId);
+    // Use authenticated Supabase client from middleware
+    const deck = await getDeck(locals.supabase, deckId);
 
     return new Response(JSON.stringify(deck), {
       status: 200,
@@ -99,7 +97,7 @@ export const GET: APIRoute = async ({ params }) => {
  * @returns 404 if deck not found or access denied
  * @returns 500 for server errors
  */
-export const PATCH: APIRoute = async ({ params, request }) => {
+export const PATCH: APIRoute = async ({ params, request, locals }) => {
   try {
     // Extract and validate deck ID from URL parameters
     const idValidation = deckIdSchema.safeParse(params.id);
@@ -169,9 +167,8 @@ export const PATCH: APIRoute = async ({ params, request }) => {
       );
     }
 
-    // For now, use the global supabase client
-    // TODO: Replace with authenticated client from locals.supabase after auth implementation
-    const deck = await updateDeck(supabaseClient, deckId, validationResult.data);
+    // Use authenticated Supabase client from middleware
+    const deck = await updateDeck(locals.supabase, deckId, validationResult.data);
 
     return new Response(JSON.stringify(deck), {
       status: 200,
@@ -226,7 +223,7 @@ export const PATCH: APIRoute = async ({ params, request }) => {
  * @returns 404 if deck not found or access denied
  * @returns 500 for server errors
  */
-export const DELETE: APIRoute = async ({ params }) => {
+export const DELETE: APIRoute = async ({ params, locals }) => {
   try {
     // Extract and validate deck ID from URL parameters
     const idValidation = deckIdSchema.safeParse(params.id);
@@ -254,9 +251,8 @@ export const DELETE: APIRoute = async ({ params }) => {
 
     const deckId = idValidation.data;
 
-    // For now, use the global supabase client
-    // TODO: Replace with authenticated client from locals.supabase after auth implementation
-    await deleteDeck(supabaseClient, deckId);
+    // Use authenticated Supabase client from middleware
+    await deleteDeck(locals.supabase, deckId);
 
     // Return 204 No Content on successful deletion
     return new Response(null, {

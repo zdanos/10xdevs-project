@@ -1,7 +1,6 @@
 import type { APIRoute } from "astro";
 import { createDeckSchema } from "@/lib/validators/deck.validator";
 import { listUserDecks, createDeck } from "@/lib/services/deck.service";
-import { supabaseClient } from "@/db/supabase.client";
 
 export const prerender = false;
 
@@ -12,11 +11,10 @@ export const prerender = false;
  * @returns 200 with array of decks
  * @returns 500 for server errors
  */
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
   try {
-    // For now, use the global supabase client
-    // TODO: Replace with authenticated client from locals.supabase after auth implementation
-    const decks = await listUserDecks(supabaseClient);
+    // Use authenticated Supabase client from middleware
+    const decks = await listUserDecks(locals.supabase);
 
     return new Response(JSON.stringify(decks), {
       status: 200,
@@ -53,7 +51,7 @@ export const GET: APIRoute = async () => {
  * @returns 400 for validation errors
  * @returns 500 for server errors
  */
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, locals }) => {
   try {
     // Parse request body
     let body;
@@ -97,9 +95,8 @@ export const POST: APIRoute = async ({ request }) => {
       );
     }
 
-    // For now, use the global supabase client
-    // TODO: Replace with authenticated client from locals.supabase after auth implementation
-    const deck = await createDeck(supabaseClient, validationResult.data);
+    // Use authenticated Supabase client from middleware
+    const deck = await createDeck(locals.supabase, validationResult.data);
 
     return new Response(JSON.stringify(deck), {
       status: 201,
