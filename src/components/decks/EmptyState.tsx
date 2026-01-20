@@ -34,7 +34,12 @@ export default function EmptyState({ onCreateClick }: EmptyStateProps) {
         <p className="mt-2 text-base text-slate-600">Create your first deck to start learning</p>
 
         {/* CTA Button */}
-        <Button onClick={onCreateClick} className="mt-6 bg-green-600 hover:bg-green-700" size="lg">
+        <Button
+          onClick={onCreateClick}
+          className="mt-6 bg-green-600 hover:bg-green-700"
+          size="lg"
+          data-testid="create-first-deck-button"
+        >
           <FolderPlus className="mr-2 h-5 w-5" />
           Create Your First Deck
         </Button>

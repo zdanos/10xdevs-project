@@ -104,13 +104,13 @@ export default function CreateDeckModal({ isOpen, onClose, onSubmit, isSubmittin
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" data-testid="create-deck-modal">
         <DialogHeader>
           <DialogTitle>Create New Deck</DialogTitle>
           <DialogDescription>Give your new deck a name. You can change it later.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} data-testid="create-deck-form">
           <div className="space-y-4 py-4">
             {/* Deck Name Input */}
             <div className="space-y-2">
@@ -131,6 +131,7 @@ export default function CreateDeckModal({ isOpen, onClose, onSubmit, isSubmittin
                 className={showError ? "border-red-500 focus-visible:ring-red-500" : ""}
                 aria-invalid={showError ? "true" : "false"}
                 aria-describedby={showError ? `${inputId}-error` : undefined}
+                data-testid="create-deck-name-input"
               />
 
               {/* Character Counter */}
@@ -150,10 +151,21 @@ export default function CreateDeckModal({ isOpen, onClose, onSubmit, isSubmittin
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleCancel} disabled={isSubmitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancel}
+              disabled={isSubmitting}
+              data-testid="create-deck-cancel-button"
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={!isValid || isSubmitting} className="bg-green-600 hover:bg-green-700">
+            <Button
+              type="submit"
+              disabled={!isValid || isSubmitting}
+              className="bg-green-600 hover:bg-green-700"
+              data-testid="create-deck-submit-button"
+            >
               {isSubmitting ? "Creating..." : "Create Deck"}
             </Button>
           </DialogFooter>

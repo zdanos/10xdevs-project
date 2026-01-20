@@ -30,6 +30,7 @@ export default function CreateDeckButton({ onClick, disabled = false }: CreateDe
         disabled={disabled}
         className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-green-600 p-0 shadow-lg hover:bg-green-700 md:hidden"
         aria-label="Create new deck"
+        data-testid="create-deck-button-mobile"
       >
         <Plus className="h-6 w-6" />
       </Button>
@@ -40,6 +41,7 @@ export default function CreateDeckButton({ onClick, disabled = false }: CreateDe
         disabled={disabled}
         className="hidden bg-green-600 hover:bg-green-700 md:inline-flex"
         size="default"
+        data-testid="create-deck-button-desktop"
       >
         <Plus className="mr-2 h-5 w-5" />
         New Deck

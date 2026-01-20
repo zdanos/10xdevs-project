@@ -2,7 +2,7 @@ import type { Page, Locator } from "@playwright/test";
 
 /**
  * Page Object Model for Login Page
- * Implements resilient locators and reusable actions
+ * Implements resilient locators and reusable actions using data-testid attributes
  */
 export class LoginPage {
   readonly page: Page;
@@ -14,9 +14,10 @@ export class LoginPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.emailInput = page.getByLabel(/email/i);
-    this.passwordInput = page.getByLabel(/password/i);
-    this.submitButton = page.getByRole("button", { name: /log in|sign in/i });
+    // Using data-testid for resilient, test-specific selectors
+    this.emailInput = page.getByTestId("login-email-input");
+    this.passwordInput = page.getByTestId("login-password-input");
+    this.submitButton = page.getByTestId("login-submit-button");
     this.errorMessage = page.getByRole("alert");
     this.registerLink = page.locator('a[href="/register"]');
   }
@@ -31,8 +32,16 @@ export class LoginPage {
     await this.submitButton.click();
   }
 
+  async waitForNavigation() {
+    await this.page.waitForURL(/\/app\//);
+  }
+
   async getErrorMessage(): Promise<string | null> {
     return await this.errorMessage.textContent();
+  }
+
+  async hasError(): Promise<boolean> {
+    return await this.errorMessage.isVisible();
   }
 
   async goToRegister() {

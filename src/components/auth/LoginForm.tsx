@@ -172,6 +172,7 @@ export default function LoginForm() {
               disabled={formState.isSubmitting}
               aria-invalid={!!formState.fieldErrors.email}
               aria-describedby={formState.fieldErrors.email ? `${emailId}-error` : undefined}
+              data-testid="login-email-input"
               className={`w-full max-w-full h-11 px-4 rounded-lg border-2 box-border ${
                 formState.fieldErrors.email ? "border-red-500" : "border-neutral-300"
               } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 text-base disabled:bg-neutral-100 disabled:cursor-not-allowed`}
@@ -197,6 +198,7 @@ export default function LoginForm() {
               disabled={formState.isSubmitting}
               aria-invalid={!!formState.fieldErrors.password}
               aria-describedby={formState.fieldErrors.password ? `${passwordId}-error` : undefined}
+              data-testid="login-password-input"
               className={`w-full max-w-full h-11 px-4 rounded-lg border-2 box-border ${
                 formState.fieldErrors.password ? "border-red-500" : "border-neutral-300"
               } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 text-base disabled:bg-neutral-100 disabled:cursor-not-allowed`}
@@ -214,6 +216,7 @@ export default function LoginForm() {
             disabled={!isFormValid || formState.isSubmitting}
             className="w-full h-11 text-base font-semibold bg-green-600 hover:bg-green-700 focus-visible:ring-green-500 border-0 shadow-none"
             size="lg"
+            data-testid="login-submit-button"
           >
             {formState.isSubmitting ? "Signing in..." : "Sign in"}
           </Button>
