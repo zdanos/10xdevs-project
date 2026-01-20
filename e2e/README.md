@@ -2,6 +2,33 @@
 
 End-to-end tests using Playwright to verify the complete application flow from a user's perspective.
 
+## Setup
+
+### Environment Variables
+
+E2E tests require valid test user credentials. Create a `.env.test` file in the project root with the following variables:
+
+```bash
+# Test user credentials for E2E tests
+E2E_USERNAME=test@example.com
+E2E_PASSWORD=your_test_password_here
+
+# Optional: Custom base URL (defaults to http://localhost:3000)
+# PLAYWRIGHT_BASE_URL=http://localhost:3000
+```
+
+**Important:** 
+- The `.env.test` file is git-ignored and should NOT be committed
+- Use a dedicated test account for E2E testing
+- These credentials should be valid in your test environment
+
+### Installation
+
+```bash
+# Install Playwright browsers
+npx playwright install chromium
+```
+
 ## Structure
 
 ```
