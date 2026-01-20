@@ -37,5 +37,4 @@ export const registerSchema = z
   });
 
 // Export types for TypeScript
-export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;

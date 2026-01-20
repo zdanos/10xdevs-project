@@ -5,12 +5,8 @@
  */
 
 import { useState, useCallback, useId } from "react";
-import { loginSchema, type LoginInput } from "@/lib/validators/auth.validator";
+import { loginSchema } from "@/lib/validators/auth.validator";
 import { Button } from "@/components/ui/button";
-
-interface LoginFormProps {
-  // No props needed - form is self-contained
-}
 
 interface FormState {
   email: string;
@@ -23,7 +19,7 @@ interface FormState {
   };
 }
 
-export default function LoginForm({}: LoginFormProps) {
+export default function LoginForm() {
   const [formState, setFormState] = useState<FormState>({
     email: "",
     password: "",
