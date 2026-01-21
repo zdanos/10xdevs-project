@@ -22,26 +22,27 @@ import { DeleteConfirmationDialog } from "./DeleteConfirmationDialog";
 import CardFormDrawer from "@/components/ui/CardFormDrawer";
 
 interface DeckDetailsViewProps {
-  initialDeck: DeckDTO;
+  initialDeck: DeckDTO | null;
   initialFlashcards: FlashcardDTO[];
   initialError: ApiError | null;
 }
 
 export function DeckDetailsView({ initialDeck, initialFlashcards, initialError }: DeckDetailsViewProps) {
+  // Initialize hook even if deck is null (hooks must be called unconditionally)
   const { state, actions } = useDeckDetails({
-    initialDeck,
+    initialDeck: initialDeck ?? { id: "", name: "", user_id: "", created_at: "", updated_at: "", card_count: 0 },
     initialFlashcards,
   });
 
   // Handle initial SSR errors
-  if (initialError) {
+  if (initialError || !initialDeck) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-red-600">Failed to load deck</h2>
-          <p className="mt-2 text-gray-600">{initialError.message}</p>
+          <p className="mt-2 text-gray-600">{initialError?.message ?? "Deck not found"}</p>
           <button
-            onClick={() => actions.refreshFlashcards()}
+            onClick={() => window.location.reload()}
             className="mt-4 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
           >
             Retry
@@ -165,7 +166,11 @@ export function DeckDetailsView({ initialDeck, initialFlashcards, initialError }
           itemName={state.flashcards.find((c) => c.id === state.deletingCardId)?.front.substring(0, 100) || ""}
           isDeleting={state.isDeletingCard}
           error={state.deleteCardError}
-          onConfirm={() => actions.deleteCard(state.deletingCardId!)}
+          onConfirm={() => {
+            if (state.deletingCardId) {
+              actions.deleteCard(state.deletingCardId);
+            }
+          }}
           onCancel={actions.closeDeleteCardDialog}
         />
       )}

@@ -34,7 +34,7 @@ export default function NoResultsState({ searchQuery, onClearSearch }: NoResults
 
         {/* Description with search query */}
         <p className="mt-2 text-base text-slate-600">
-          No decks match <span className="font-medium">"{searchQuery}"</span>
+          No decks match <span className="font-medium">&quot;{searchQuery}&quot;</span>
         </p>
 
         {/* Clear Search Button */}

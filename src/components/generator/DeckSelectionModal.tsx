@@ -106,7 +106,7 @@ export default function DeckSelectionModal({
         setState((prev) => ({ ...prev, error: "Please select a deck or enter a new deck name" }));
         setIsSaving(false);
       }
-    } catch (error) {
+    } catch {
       setIsSaving(false);
       // Error handling is done in the parent component
     }
@@ -132,10 +132,7 @@ export default function DeckSelectionModal({
         aria-modal="true"
         aria-labelledby="modal-title"
       >
-        <div
-          className="bg-white rounded-2xl shadow-xl max-h-[90vh] w-full max-w-2xl flex flex-col overflow-hidden animate-fade-in"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="bg-white rounded-2xl shadow-xl max-h-[90vh] w-full max-w-2xl flex flex-col overflow-hidden animate-fade-in">
           {/* Header */}
           <header className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">
             <div>

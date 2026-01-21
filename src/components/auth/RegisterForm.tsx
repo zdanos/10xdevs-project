@@ -5,12 +5,8 @@
  */
 
 import { useState, useCallback, useId } from "react";
-import { registerSchema, type RegisterInput } from "@/lib/validators/auth.validator";
+import { registerSchema } from "@/lib/validators/auth.validator";
 import { Button } from "@/components/ui/button";
-
-interface RegisterFormProps {
-  // No props needed - form is self-contained
-}
 
 interface FormState {
   email: string;
@@ -25,7 +21,7 @@ interface FormState {
   };
 }
 
-export default function RegisterForm({}: RegisterFormProps) {
+export default function RegisterForm() {
   const [formState, setFormState] = useState<FormState>({
     email: "",
     password: "",

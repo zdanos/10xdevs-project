@@ -25,7 +25,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         {
           status: 400,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -41,7 +41,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -75,7 +75,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         {
           status: 400,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -88,7 +88,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -101,7 +101,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
   } catch (err) {
     console.error("Registration error:", err);
@@ -113,7 +113,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
   }
 };

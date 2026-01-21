@@ -126,7 +126,6 @@ export default function CreateDeckModal({ isOpen, onClose, onSubmit, isSubmittin
                 onBlur={handleBlur}
                 placeholder="e.g., Spanish Vocabulary"
                 maxLength={maxLength}
-                autoFocus
                 disabled={isSubmitting}
                 className={showError ? "border-red-500 focus-visible:ring-red-500" : ""}
                 aria-invalid={showError ? "true" : "false"}

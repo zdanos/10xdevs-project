@@ -20,7 +20,7 @@ export const POST: APIRoute = async ({ locals }) => {
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -35,7 +35,7 @@ export const POST: APIRoute = async ({ locals }) => {
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        },
+        }
       );
     }
 
@@ -47,7 +47,7 @@ export const POST: APIRoute = async ({ locals }) => {
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
   } catch (err) {
     console.error("Logout error:", err);
@@ -59,7 +59,7 @@ export const POST: APIRoute = async ({ locals }) => {
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
   }
 };

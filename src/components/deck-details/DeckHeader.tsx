@@ -186,7 +186,6 @@ export function DeckHeader({ deck, isRenaming, isDeletingDeck, onRename, onDelet
               maxLength={100}
               className={validationError ? "border-red-500" : ""}
               disabled={isRenaming}
-              autoFocus
             />
             {/* Character counter */}
             <div className="mt-1 flex items-center justify-between">

@@ -44,7 +44,7 @@ export function DeleteConfirmationDialog({
     if (type === "deck") {
       return (
         <>
-          Are you sure you want to delete <strong className="font-semibold">'{itemName}'</strong>?{" "}
+          Are you sure you want to delete <strong className="font-semibold">&apos;{itemName}&apos;</strong>?{" "}
           {itemCount !== undefined && itemCount > 0 && (
             <>
               This will permanently delete <strong className="font-semibold">{itemCount}</strong>{" "}

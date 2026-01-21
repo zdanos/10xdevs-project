@@ -5,6 +5,7 @@ import type { ReactElement, ReactNode } from "react";
  * Custom render function that wraps components with necessary providers
  * Add any global providers here (e.g., Context providers, Router, etc.)
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface CustomRenderOptions extends Omit<RenderOptions, "wrapper"> {
   // Add custom options here if needed
 }

@@ -21,7 +21,7 @@ export function EmptyState({ onCreate }: EmptyStateProps) {
         </div>
         <h3 className="mt-4 text-lg font-semibold text-gray-900">No flashcards yet</h3>
         <p className="mt-2 text-sm text-gray-600">Add your first flashcard to start learning</p>
-        
+
         {/* Action buttons */}
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
           <Button

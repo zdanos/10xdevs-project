@@ -166,7 +166,6 @@ export default function CardFormDrawer({
         <div
           className="bg-white rounded-t-2xl md:rounded-2xl shadow-xl max-h-[85vh] md:max-h-[90vh] w-full md:max-w-2xl
             flex flex-col animate-slide-up md:animate-fade-in overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <header className="flex items-center justify-between px-6 py-4 border-b border-neutral-200">

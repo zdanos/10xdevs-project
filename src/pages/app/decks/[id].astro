@@ -93,7 +93,7 @@ const pageTitle = initialDeck ? `${initialDeck.name} - FlashCard AI` : "Deck Det
 <Layout title={pageTitle}>
   <main class="min-h-screen bg-gray-50 py-8">
     <DeckDetailsView
-      initialDeck={initialDeck!}
+      initialDeck={initialDeck}
       initialFlashcards={initialFlashcards}
       initialError={initialError}
       client:load
