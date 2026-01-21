@@ -29,6 +29,20 @@ E2E_PASSWORD=your_test_password_here
 npx playwright install chromium
 ```
 
+### Global Teardown
+
+The test suite includes a global teardown function that runs **after all tests** have completed. This cleanup process:
+
+- Authenticates as the test user using credentials from `.env.test`
+- Connects to the test Supabase database
+- Deletes all decks created during test execution
+- Automatically removes associated flashcards (via CASCADE delete)
+- Ensures a clean state for subsequent test runs
+
+The teardown is configured in `playwright.config.ts` and implemented in `e2e/global-teardown.ts`. It uses environment variables from `.env.test`:
+- `SUPABASE_URL` and `SUPABASE_KEY` - Database connection
+- `E2E_USERNAME` and `E2E_PASSWORD` - Test user authentication (for RLS compliance)
+
 ## Structure
 
 ```
@@ -38,6 +52,7 @@ e2e/
 │   └── DecksPage.ts
 ├── fixtures/           # Test fixtures and custom test extensions
 │   └── auth.fixture.ts
+├── global-teardown.ts  # Global teardown for database cleanup
 └── *.spec.ts          # Test files
 ```
 
