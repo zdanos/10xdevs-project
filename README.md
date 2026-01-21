@@ -32,6 +32,11 @@ FlashCard AI is a mobile-first MVP web application that drastically reduces the 
   - **Supabase** (PostgreSQL + Auth; can be self-hosted)
 - **AI**:
   - **OpenAI API** (target model: **GPT-4o-mini**)
+- **Testing**:
+  - **Vitest** (unit and integration tests)
+  - **@testing-library/react** (React component testing)
+  - **Playwright** (E2E tests with mobile viewport support)
+  - **msw** (Mock Service Worker for HTTP mocking - optional)
 - **CI/CD & hosting (planned in PRD/tech stack)**:
   - **GitHub Actions**
   - **DigitalOcean** (Docker image deployment)

@@ -1,0 +1,14 @@
+---
+/**
+ * Login page - Entry point for existing users
+ * Server-rendered page with client-side React form
+ * Auth check and redirect handled by middleware
+ */
+
+import AuthLayout from "@/layouts/AuthLayout.astro";
+import LoginForm from "@/components/auth/LoginForm";
+---
+
+<AuthLayout title="Sign In" description="Sign in to your FlashCard AI account">
+  <LoginForm client:only="react" />
+</AuthLayout>

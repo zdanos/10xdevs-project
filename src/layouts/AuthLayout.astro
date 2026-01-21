@@ -1,0 +1,52 @@
+---
+/**
+ * AuthLayout - Minimal layout for authentication pages
+ * Provides a centered, distraction-free experience for login/register flows
+ */
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description || "FlashCard AI - Authentication"} />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>{title} - FlashCard AI</title>
+  </head>
+  <body class="min-h-screen bg-neutral-50 flex flex-col">
+    <!-- Header with Logo -->
+    <header class="w-full py-6 px-4">
+      <div class="max-w-md mx-auto">
+        <a href="/" class="inline-flex items-center gap-2 text-neutral-900 hover:text-neutral-700 transition-colors">
+          <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="4" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2"></rect>
+            <path d="M4 10h16M12 10v10" stroke="currentColor" stroke-width="2"></path>
+          </svg>
+          <span class="text-xl font-bold">FlashCard AI</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex items-center justify-center px-4 py-8">
+      <slot />
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-6 px-4 text-center text-sm text-neutral-500">
+      <p>&copy; {new Date().getFullYear()} FlashCard AI. All rights reserved.</p>
+    </footer>
+  </body>
+</html>
+
+<style>
+  @import "../styles/global.css";
+</style>

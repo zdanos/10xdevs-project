@@ -1,0 +1,41 @@
+---
+import Layout from "@/layouts/Layout.astro";
+import DecksLibrary from "@/components/decks/DecksLibrary";
+import type { ListDecksResponseDTO, ApiError } from "@/types";
+
+// Disable prerendering for this page
+export const prerender = false;
+
+// Get locale from middleware
+const locale = Astro.locals.locale;
+
+// Initialize response variables
+let initialDecks: ListDecksResponseDTO = [];
+let initialError: ApiError | null = null;
+
+try {
+  // Fetch decks from API during SSR
+  const response = await fetch(`${Astro.url.origin}/api/decks`, {
+    headers: {
+      cookie: Astro.request.headers.get("cookie") || "",
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    initialError = errorData as ApiError;
+  } else {
+    initialDecks = await response.json();
+  }
+} catch (error) {
+  // Handle SSR fetch errors
+  initialError = {
+    error: "SSR Error",
+    message: error instanceof Error ? error.message : "Failed to load decks",
+  };
+}
+---
+
+<Layout title="My Decks - FlashCard AI">
+  <DecksLibrary client:load initialDecks={initialDecks} initialError={initialError} locale={locale} />
+</Layout>

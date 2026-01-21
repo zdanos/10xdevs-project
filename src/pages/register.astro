@@ -1,0 +1,14 @@
+---
+/**
+ * Register page - Entry point for new users
+ * Server-rendered page with client-side React form
+ * Auth check and redirect handled by middleware
+ */
+
+import AuthLayout from "@/layouts/AuthLayout.astro";
+import RegisterForm from "@/components/auth/RegisterForm";
+---
+
+<AuthLayout title="Create Account" description="Create your FlashCard AI account">
+  <RegisterForm client:only="react" />
+</AuthLayout>

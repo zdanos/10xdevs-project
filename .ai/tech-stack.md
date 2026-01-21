@@ -15,6 +15,12 @@ AI - Komunikacja z modelem przez OpenAI API:
 - Bezpośredni dostęp do docelowego modelu GPT-4o-mini
 - Pozwala na ustawianie limitów finansowych dla klucza API
 
+Testy - Kompleksowa strategia testowania:
+- Vitest jako główny runner testów jednostkowych i integracyjnych (kompatybilny z Vite/Astro)
+- @testing-library/react do testowania komponentów React w izolacji
+- Playwright do testów E2E z obsługą wielu silników (WebKit/Chromium/Firefox) i emulacją urządzeń mobilnych
+- msw (Mock Service Worker) opcjonalnie do mockowania odpowiedzi HTTP z OpenAI API
+
 CI/CD i Hosting:
 - Github Actions do tworzenia pipeline’ów CI/CD
 - DigitalOcean do hostowania aplikacji za pośrednictwem obrazu docker

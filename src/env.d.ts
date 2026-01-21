@@ -1,12 +1,23 @@
 /// <reference types="astro/client" />
+/// <reference types="vitest/globals" />
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "./db/database.types.ts";
+import type { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
+
+declare module "vitest" {
+  interface Assertion<T = unknown> extends jest.Matchers<void, T>, TestingLibraryMatchers<T, void> {}
+}
 
 declare global {
   namespace App {
     interface Locals {
       supabase: SupabaseClient<Database>;
+      locale: string;
+      user: {
+        id: string;
+        email: string | undefined;
+      } | null;
     }
   }
 }
